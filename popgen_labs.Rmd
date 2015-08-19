@@ -1,0 +1,359 @@
+---
+title: "Potential Population Genetics Labs & Content"
+output: pdf_document
+bibliography: /home/antolinlab/Desktop/library.bib
+---
+
+<!--- bibliography: /users/kelly/desktop/library.bib -->
+
+<!--- Set text wrapping for embedded R code -->
+```{r set-options, echo=FALSE, }
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60))
+```
+
+# Next generation sequencing (NGS)
+
+Brief overview and list of platforms.
+Some discussion of error rates & necessary coverage depths.
+
+## Uses
+
+- Whole genome sequencing & re-sequencing
+- Biodiversity studies (e.g., gut microbiome or soil microbial diversity)
+- Reduced representation genome sequencing
+
+# Reduced-representation genome sequencing
+
+Currently, sequencing whole genomes for all individuals in a study population is cost-prohibitive. However, sequencing subsets of the genome for large numbers of individuals is financially feasible. If we can get a random sample of DNA sequenced from each individual in the population of interest, we can make statistically sound inference about the evolutionary processes that impact that population.
+
+How do we actually obtain a random sample of DNA from a genome? There are three currently used methods, which can be collectively refered to as *reduced representation genome sequencing* techniques.
+
+##RADseq
+
+Genomic DNA is digested by one type II restriction enzyme with a single cut site, and a unique sample adapter is ligated to the overhang at that restriction site. Restriction fragments are randomly sheared using sonication, and a subset of the fragments are selected for sequencing based on their size ("size selection"). Additional adapters are ligated to the remaining fragments before sequencing. Raw DNA sequences are processed by aligning fragments at the cut site and looking for shared sequence identity, and genotypes are called according to depth of coverage and quality [@Baird2008].
+
+  *Advantages:* 
+  
+  - This technique can be used with many different restriction enzymes (though different overhangs will require different adapters).
+  
+  - The preparation time for RADseq libraries is relatively short.
+  
+
+  *Disadvantages:* 
+  
+  - Shearing with sonication produces different fragment size distributions for each individual. Not all restriction fragments will be present in the size selected DNA sample for each individual. Since restriction fragment sequences are only useful if they are sequenced from many of the individuals, some data will have to be discarded.
+  
+  - To compensate for the data discarded due to variation between which DNA is sequenced in which individuals
+
+##2b-RAD
+Genomic DNA is digested by one type IIB restriction enzyme [@Marshall2010] with two cut sites. The cut sites fall on either side of the recognition site, resulting in fragments of uniform length that can be separated from the remaining DNA by their size. Unique sample adapters and sequencing adapters are ligated to the restriction site overhangs. Raw DNA sequences are processed by aligning fragments at the cut site and looking for shared sequence identity, and genotypes are called according to depth of coverage and quality [@Wang2012a].
+
+*Advantages:*
+
+- The preparation time for 2b-RAD libraries is relatively short, and the technique is inexpensive.
+
+- Data processing is simplified by the fact that all sequences should be the same length, and all sequences share the exact enzyme recognition site.
+
+*Disadvantages:*
+
+- There are very few type IIB enzymes, so this procedure is not as flexible as those that are compatible with many different enzymes.
+
+##ddRADseq
+
+Genomic DNA is digested by a pair of type II restriction enzymes, each with a different unique cut site. Unique sample adapters are ligated to the restriction site overhangs, and the fragments are size selected. Additional adapters are ligated to the remaining fragments before sequencing. Raw DNA sequences are processed by aligning fragments at the cut sites and looking for shared sequence identity, and genotypes are called according to depth of coverage and quality
+
+# NGS Data Processing of 
+
+This will be an overview of the general workflow for handling NGS data derived from reduced-representation and whole genome resequencing projects. Links to online resources and tutorials will be included.
+
+## Demultiplexing
+
+Raw NGS data files are very large and contain the sequences for all individuals in your sample mixed together. The unique sample adapters ligated to the restriction fragments to sequenc
+
+## Reference-based assembly
+
+## *de novo* Assembly
+
+## Quality Filters
+**genotype quality**
+
+- guideline: remove SNPs with quality scores <25
+
+- rationale: remove low quality genotypes from analysis
+  
+**depth of coverage**
+
+- guideline: retain sequences only with >=10X
+
+- rationale: include only high-quality genotypes observed several times in the same individal for increased confidence in genotype calls
+  
+**minor allele frequency**
+
+- guideline: remove <5% frequency
+
+- rationale: remove private alleles and sequencing errors not caught in other filters, at the risk of also removing informative information about rare alleles
+
+\pagebreak
+
+# Overview of data formats and maniplation of VCF data in R
+
+One of the most challenging aspects of analyzing NGS data is converting data to the different formats required for input into analysis software.
+
+Here is a brief summary of the different data types types used by common R packages for population genetic inference.
+
+|Package|Input Format|Link|
+|:-------:|:------------:|:-------------------|
+|adegenet|genlight |http://adegenet.r-forge.r-project.org/|
+|genetics|genotype file|https://cran.r-project.org/web/packages/genetics/index.html|
+|SNPrelate|GDS|http://www.bioconductor.org/packages/release/bioc/html/SNPRelate.html|
+|poppr|geneclone|http://grunwaldlab.cgrb.oregonstate.edu/poppr-r-package-population-genetics|
+|GWAStools|NetCDF, GDS or Matrix|http://www.bioconductor.org/packages/release/bioc/html/GWASTools.html|
+
+For a more detailed discussion of different data types and their pros/cons, please see https://github.com/NESCent/r-popgen-hackathon/wiki/R-Classes-for-Population-Genetic-Data .
+
+\pagebreak
+
+# Exercise 1: Structure at the locus-level: Calculation of $F_{ST}$
+
+## Background
+
+Genetic variation in populations can exist within subpopulations ("groups") and between groups. We often ask how divergent subpopulations are by considering the partitioning of genetic variation into these categories. If most of the population genetic variation is partitioned **between** groups, we infer that these groups are genetically diverged in some manner. We would then evaluate possible hypotheses for this divergence. 
+
+Alternatively, if most of the population genetic variation is partitioned **within** groups, we infer that the groups are not highly diverged. In this case, even if there is a high amount of genetic variation in the poplation as a whole, there is no difference in the genetic variation contained within each group.
+
+We can measure genetic variation in subpopulations in a number of ways. The classical method is to calculate the Fixation Index, $F_{ST}$ [@Brown1970]. High $F_{ST}$ values indicate genetic variation is partitioned **between** groups and suggests the presence of meaningful population structure.
+
+Evolutionary rates vary throughout the genome, and consequently $F_{ST}$ can vary for different loci under consideration. Just as some loci are highly conserved while others are highly divergent, $F_{ST}$ can be very high for some loci and very low for others. Next-generation sequencing produces data for numerous loci, and we can calculate $F_{ST}$ for each locus. This provides us with a distribution of $F_{ST}$ values across the genome and allows us to identify sites that correspond with population structure.
+
+### Exercise options
+
+1. Find a reference mapped dataset and calculate sliding window $F_{ST}$
+2. Take a small subset of the tick dataset and do an $F_{ST}$ outlier analysis using Bayescan (would need to be installed in computer lab or on a remote machine to which students can submit computing jobs).
+3. Take already completed Bayescan output, visualize, and interpret
+
+### _Rough outline for option 3_
+
+## Objective
+
+Identify $F_{ST}$ outliers from a large SNP dataset and interpret results.
+
+## Required Software
+
+```{r}
+library(qvalue)
+```
+
+## Dataset
+
+<!--- the bayescan output loaded below ignores population structure by site and looks for outliers across both populations simultaneously
+(these are the data from the EEID 2014 poster & from my dissertation)
+-->
+
+```{r}
+# load in the Bayescan data
+bayescan<-read.table('~/Dropbox/ddRADseq/D_variabilis_Pseudoref/Bayescan_Input_pseudoref_pop_filtered_maxmissing0.75_opossums_NotMis_fst.txt')
+```
+
+We have `r length(bayescan[,1])` quality-filtered SNPs from the tick *Dermacentor variabilis*. The SNPs were obtained from a ddRADseq project and stored in a VCF file. VCF data for the SNPs was reformatted for analysis in **Bayescan** [@Foll2008]. **Bayescan** uses SNP allele counts to calculate $F_{ST}$ but requires a supercomputer to run. Consquently, you are provided with the output from a Bayescan analysis.
+
+## Assignment
+
+### The Bayescan Model
+
+Bayescan uses a model where SNP allele frequencies are described by parameters for *locus-level* and *population-level* effects. These two parameters are estimated for each SNP in the dataset. Our null hypothesis is that genetic drift is the primary determinant of allele frequencies. When this is the case, the locus-level parameter is 0. If the locus-level parameter for a SNP is significantly different than 0 we have evidence consistent with natural selection acting on allele frequencies. Non-zero locus-level parameters correspond with higher $F_{ST}$ values. Bayescan reports both the calculated $F_{ST}$ and a p-value indicating whether the corresponding locus-level parameter was significantly different from the null expectation of genetic drift. **You are provided with the Bayescan $F_{ST}$ and p-value data.**
+
+
+
+### Multiple Comparisions in Genetic Inference
+
+NGS studies, including reduced-representation genome sequencing studies, can identify 1,000s of SNPs. When we calculate $F_{ST}$ or any other descriptive statistic for each SNP, we also want to determine if those values are *statistically significant*; that is, do they differ from our null hypothesis? Recall from basic statistics that we infer significance when our p-values are less than our set $\alpha$ level. The $\alpha$ level is the maximum probability of Type I (false-positive) error; typically $\alpha$ = 0.05. 
+
+If we perform `r length(bayescan[,1])` statistical tests -- one for each SNP -- and expect that 5% of our p-values would be statistically significant by chance alone, how many false-positive results would we obtain? What might be the consequence of incorrectly inferring that SNPs have significantly high $F_{ST}$ values when they really do not?
+
+We can correct our p-values to account for the number of comparisions we perform. One typical technique for genetic datasets is to calculate a *qvalue*. The *qvalue* for a SNP will always be higher than the p-value, but if the allele frequencies for the SNP are truly significantly different from our null model of drift then the *qvalue* will still be less than $\alpha$.
+
+#### How many SNPs have significant $F_{ST}$ at the $\alpha$ = 0.05 level?
+Shown below is an example for counting SNPs at the $\alpha$ = 0.1 level; modify the code below to determine which SNPs have allele frequencies consistent with selection at the more stringent $\alpha$ = 0.05 level.
+
+```{r}
+# count the number significant
+sig<-bayescan$qval[bayescan$qval < 0.1]
+length(sig)
+
+# Set plot margins
+par(mar=c(5,6,4,2))
+
+# Add axis labels and an appropriate title to your figure
+plot(bayescan$qval, bayescan$fst, pch=16, cex=1.5, cex.axis=1.5, xlim=c(0,1), 
+     ylim=c(0,0.15), bty='n', las=1, xlab='', ylab='', cex.lab=1.5)
+
+# All the high q-value points are on top of each other; use a histogram to look at the distribution of q-values\
+# Add axis labels and an appropriate title to your figure
+hist(bayescan$qval, breaks=seq(0,1,0.05), xlab='', main='')
+# Draw a vertical line to indicate your alpha level
+abline(v=0.1, col='red')
+```
+
+\pagebreak
+
+#Exercise 2: Structure at the genome level
+
+## Background
+
+However, in order to use $F_{ST}$ we need to have a hypothesis about what our subpopulations are. For example, we could calculate $F_{ST}$ for animals collected from subpopulations at different locations or from distinct habitat types. However, in many cases we don't have enough information to make good hypotheses regarding the number
+
+## Objective 
+
+Look for population structure that corresponds with tick collection site.
+
+## Required Software
+
+```{r eval=FALSE, tidy=TRUE}
+# for OSX and Windows users, download directly from CRAN
+install.packages('adegenet')
+# for Ubuntu users, download source code and install manually
+install.packages("~/your/path/adegenet", repos=NULL, type="source")
+
+# packages
+library(scales)
+library(adegenet)
+```
+
+## Dataset
+
+Brief description.
+
+<!--- Execute the R code but don't show it because it prints too many messages to the output -->
+### Loading genlight data
+```{r echo=FALSE, results='hide', include=FALSE}
+library(scales)
+library(adegenet)
+
+# read in data
+site<-read.snp('~/Dropbox/ddRADseq/Final_Analysis/Structure_by_Site/Final_Pseudoref_minmeanDP20_minGQ25_maf0.05_BOTH_SITES_host_filtered_only_maxmissing0.75_MERGED_FOR_ADEGENET.finalSNPs_site.snp')
+extra.data<-read.csv('~/Desktop/UT_ddRADseq/ddRAD_FinalLibrary_SampleInfo_Full.csv')
+```
+
+<!--- Show the R code but don't execute it -->
+
+```{r eval=FALSE, tidy=TRUE}
+# read in data
+site<-read.snp('~/Dropbox/ddRADseq/Final_Analysis/Structure_by_Site/Final_Pseudoref_minmeanDP20_minGQ25_maf0.05_BOTH_SITES_host_filtered_only_maxmissing0.75_MERGED_FOR_ADEGENET.finalSNPs_site.snp')
+extra.data<-read.csv('~/Desktop/UT_ddRADseq/ddRAD_FinalLibrary_SampleInfo_Full.csv')
+```
+
+## Assignment
+
+Brief background on discriminant analysis, principle components, and discriminant analysis of principle components (DAPC) [@Jombart2010]
+
+**Finding population structure without an *a priori* hypothesis for population membership.**
+You may be unsure about how many subpopulations exist in your population. In this case it is possible to estimate the number of subpopulations. **adegenet** can use likelihood-based methods to select the number of subpopulations most consistent with the genetic data at hand.
+
+
+```{r, eval=FALSE}
+# Adegenet will ask you to determine the number of clusters to return based on the BIC value
+guess.k<-find.clusters(site, n.pca=33)
+
+```
+
+```{r, echo=FALSE}
+fake.bic<-c(400, 250, 125, 100, 105, 107, 108, 110, 111, 115)
+```
+
+You will be prompted to select a number of clusters to retain -- choose something high like 10. You will then see a graph showing BIC value versus number of clusters. The number of clusters with the lowest BIC value is the one most highly supported by the data. 
+
+Here is an example figure of **totally made up data** -- your BIC curve may look different. In this example, the lowest BIC corresponds to `r min(fake.bic)` clusters.
+
+```{r, echo=FALSE}
+plot(seq(1,10,1), fake.bic, col='blue', xlab='Number of clusters', ylab='BIC', main='Value of BIC\nversus number of clusters')
+lines(seq(1,10,1), fake.bic, col='blue')
+```
+
+What is the lowest BIC for the tick dataset? Does this support the hypothesis that the population is structured?
+
+**Testing for structure in hypothesized populations.**
+When you know what your subpopulations the individuals in your study should belong to, you can test specifically for that structure. You provide the DAPC function information on population membership for each individual, and DAPC identifies the genotypes that best differentiate your populations.
+```{r}
+# discriminant analysis of principal components to detect clusters
+site.dapc<-dapc(site, pop=site@pop, n.pca=33, n.da=1) # save as many PCs as possible
+par(mar=c(5,5,2,2))
+site.colors2<-c('#fec44f', '#fee391')
+scatter(site.dapc, col=c('#fec44f', '#fee391'), axes=FALSE)
+legend("topright", legend=c('HB', 'SRT'), fill=alpha(site.colors2, 0.5), bty='n')
+```
+
+**Testing the predictive power of DAPC with novel genotypes.**
+Because you tell DAPC exactly which population each indiviual comes from, it's not terribly surprising that you recover evidence in support of your hypothesis. How well do you think DAPC would perform if you gave the method a novel genotype and asked from which population that genotype was derived? If you truly have strong population structure, novel genotypes should be correctly assigned to the appropriate subpopulaton.
+
+Poor model fits will not produce consistent assignment of genotypes despite showing strong evidence of clustering when the full dataset is considered. Do you believe that tick populations are geographically structured? Why or why not? Are there any additional data you'd like to have to help answer this question?
+
+<!--- Write a function students can source and use to do the n-1 predictive sampling. -->
+
+```{r, eval=FALSE}
+# load custom R script for n-1 predictive sampling
+source n_minus_1.r 
+
+n_minus_1(data)
+```
+
+<!--- note: cacheing (sp?) only works when you haven't modified the code! do any plotting in a separate code chunk to avoid redoing the computation -->
+```{r cache=TRUE, echo=FALSE, results='hide'}
+site.host.names<-read.table('~/Dropbox/ddRADseq/Final_Analysis/Structure_by_Site_Host/Final_Pseudoref_minmeanDP20_minGQ25_maf0.05_BOTH_SITES_host_filtered_only_maxmissing0.75_MERGED_FOR_ADEGENET.finalSNPs_site_and_host.snp', skip=6, sep="\n")
+tick.names<-as.character(site.host.names[seq(1, 198, 2),])
+tick.names.formatted<-gsub('> ', '', tick.names, perl=TRUE)
+
+tally<-0
+assign.site<-c()
+true.site<-c()
+tf.site<-c()
+for(i in 1:nInd(site)){
+  x.rm.site<-site[i] # remove individual i
+  x.kp.site<-site[-i] # keep all but individual i
+  x.kp.dapc.site<-dapc(x.kp.site, n.pca=32, n.da=1)
+  predict.x.rm.site<-predict.dapc(x.kp.dapc.site, newdata=x.rm.site)
+  if(as.character(predict.x.rm.site$assign)==as.character(pop(x.rm.site))){
+    tally=tally+1
+    tf.site<-c(tf.site, 1)
+  }
+  else{
+    tf.site<-c(tf.site, 0)
+  }
+  print(as.character(predict.x.rm.site$assign))
+  assign.site<-c(assign.site, as.character(predict.x.rm.site$assign))
+  true.site<-c(true.site, as.character(pop(x.rm.site)))
+  #print(tally)
+}
+
+what.worked.site<-cbind(tick.names.formatted, assign.site, true.site, tf.site) #names vector is pulled from the snp data, so the order should be preserved
+
+hb<-length(subset(what.worked.site, true.site=='HB')[,1])
+srt<-length(subset(what.worked.site, true.site=='SRT')[,1])
+hb.correct<-length(subset(what.worked.site, true.site=='HB' & tf.site=='1')[,1])
+srt.correct<-length(subset(what.worked.site, true.site=='SRT' & tf.site=='1')[,1])
+hb.pc<-hb.correct/hb
+srt.pc<-srt.correct/srt
+
+accuracy.site<-(hb.correct+srt.correct)/length(what.worked.site[,1])
+print(accuracy.site)
+```
+
+What fraction if individuals does DAPC accurately assign to the correct subpopulation? Is this consistent with the results from the full model? Do you believe tick populations are structured geographically?
+
+
+```{r}
+round(accuracy.site, digits=2)
+```
+
+\pagebreak
+<!---
+# Evaluating evolutionary hypotheses for observed population structure
+
+Structure can arise under a number of processes. Differentiating genetic drift from natural selection is often the first objective once population structure has been identified.
+
+# Controlling for relatedness of individuals
+
+Related individuals share genetic information and the inclusion of many related individuals can sometimes confound questions about population structure.
+-->
+
+# References

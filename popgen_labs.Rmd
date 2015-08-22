@@ -138,9 +138,10 @@ Evolutionary rates vary throughout the genome, and consequently $F_{ST}$ can var
 install.packages("PopGenome")
 # for Ubuntu
 install.packages("~/Downloads/PopGenome_2.1.6.tar.gz", repos=NULL, type="source")
+install.packages("~/Downloads/WhopGenome_0.9.2.tar.gz", repos=NULL, type="source")
 
 # read in the VCF file as a regular table to get some quick info...
-tick.table<-read.table('~/Desktop/D_variabilis_Pseudoref/Final_Analysis/Structure_by_Site/Final_Pseudoref_minmeanDP20_minGQ25_maf0.05_BOTH_SITES_host_filtered_only_maxmissing0.75_MERGED.vcf')
+tick.table<-read.table('~/Desktop/D_variabilis_Pseudoref/Final_Analysis/Structure_by_Site/Final_Pseudoref_minmeanDP20_minGQ25_maf0.05_BOTH_SITES_host_filtered_only_maxmissing0.75_MERGED.vcf', sep="\t", header=T, comment.char="")
 
 # column 2 is the position
 min(tick.table[,2])
@@ -156,52 +157,105 @@ tick.subset<-tick.table[1:(100000/200),]
 # update the position info to make all the position points unique
 # each row represents a SNP found on a 200bp long concatenated segment of the reference
 # some 200bp stretches have >1 SNP, but since we're making stuff up anyway we won't really worry about that
-for(row in 1:length(tick.subset[,1])){
-  tick.subset[row,2]=tick.subset[row,2]+(row*200)
+for(row in 1:length(tick.table[,1])){
+  tick.table[row,2]=tick.table[row,2]+(row*200)
 }
 
 head(tick.subset)[,1:5]
 tail(tick.subset)[,1:5]
 
-# make the new vcf file... always with the new vcf files :/
+# make it appear as though all those snps are on the same chromosome
+tick.table[,1]<-rep('1', length(tick.table[,1]))
 
-s.names<-c()
-i=1
-for(col in 10:length(tick.subset[1,])){
-  s.names<-c(s.names, paste('sample', i, sep=""))
-  i=i+1
-}
+# fix the names
+names(tick.table)[1]<-"#CHROM"
 
-names(tick.subset)<-c("#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT", s.names)
-
-write.table(tick.subset, '~/Desktop/CSU_PopGen_Labs/chrom1_tick_dummy_data.vcf', quote=FALSE, row.names=FALSE, sep="\t")
+write.table(tick.table, '~/Desktop/CSU_PopGen_Labs/chrom1_tick_dummy_data.vcf', quote=FALSE, row.names=FALSE, sep="\t")
 
 min(tick.subset$POS)
-max(tick.subset$POS)
+max(tick.table$POS)
+
+# tick dummy data isn't great... what about human data from NCBI?
+
+human.table<-read.table('~/Downloads//00-common_all.vcf.gz')
 ```
 
 <!--- some command line things to index the newly created VCF file
 
+# retrieve the header for the VCF file... opening it partially in gedit allows us to scroll down and see the first 417,187 lines are header. put those in a new file. (we're using data I processed through my merge_vcf.r script, which removes the header)
+$ cd ~/Desktop/D_variabilis_Pseudoref/MasterPseudoRefVCF_Copy/
+$ head -417187 pseudoref_mapped_genotypes.vcf >> pseudoref_vcf_header.txt
+$ cp pseudoref_vcf_header.txt ~/Desktop/CSU_PopGen_Labs/
+
+# paste the header onto the filtered data file we're using
+$ cd ~/Desktop/CSU_PopGen_Labs/
+$ cat pseudoref_vcf_header.txt chrom1_tick_dummy_data.vcf >> full_chrom1_tick_dummy_data.vcf
+
+# index the full VCF file
 $ sudo apt-get install tabix
-$ bgzip chrom1_tick_dummy_data.vcf
-$ tabix -f chrom1_tick_dummy_data.vcf.gz
+$ bgzip full_chrom1_tick_dummy_data.vcf
+$ tabix -f full_chrom1_tick_dummy_data.vcf.gz
 -->
 
 ```{r, echo=FALSE, results='hide', include=FALSE}
 library(PopGenome)
+library(WhopGenome)
 ```
 
 ```{r, eval=FALSE, tidy=TRUE}
 library(PopGenome)
+library(WhopGenome)
 ```
 
-```{r}
+```{r, eval=FALSE}
 # PopGenome is one of the few R packages that can read VCF files directly.
 # We'll use the pseudoreference mapped tick genome data
 # to calculate a sliding window FST -- totally inappropriate because this is just a subset of the tick genome...
 # But it's a chance to learn how the software works.
 
-GENOME.class=readVCF('~/Desktop/CSU_PopGen_Labs/chrom1_tick_dummy_data.vcf.gz', frompos=338, topos=100044)
+# population membership
+setwd('~/Desktop/CSU_PopGen_Labs/')
+
+# explore the raw data in R (but we can't do analysis directly on this file)
+tick.table<-read.table('chrom1_tick_dummy_data.vcf', sep="\t", header=T, comment.char="")
+
+# get population IDs
+pop1<-names(tick.table)[10:92]
+pop2<-names(tick.table)[93:108]
+populations<-list(pop1, pop2)
+
+GENOME.class<-readVCF('full_chrom1_tick_dummy_data.vcf.gz', numcols=2, tid="1", frompos=338, topos=200044)
+
+GENOME.class@n.sites
+GENOME.class@n.biallelic.sites #says there are only 13?! something wrong with numcols argument, I think...
+
+GENOME.class<-set.populations(GENOME.class, populations)
+
+GENOME.class.slide<-sliding.window.transform(GENOME.class,100,100)
+
+GENOME.class.slide<-diversity.stats(GENOME.class.slide)
+PopGplot(GENOME.class.slide@nuc.diversity.within)
+
+slide.GENOME.slide<-F_ST.stats(GENOME.class, list(1:83, 84:99))
+get.F_ST(GENOME.class.slide)
+fst.vals<-GENOME.class.slide@F_ST.stats
+GENOME.class@Pi
+GENOME.class@region.stats
+
+# none of this works right...
+
+# try with stickleback data...
+# vcf file from http://datadryad.org/resource/doi:10.5061/dryad.62hb0/1
+# lines are out of order; fix with 
+# $ vcf-sort batch_2.vcf.gz >> batch_2_sort.vcf
+# then zip with bgzip and index with tabix (see above html-style comment for the basic structure)
+
+stick<-read.table('batch_2_sort.vcf.gz')
+stick.fix<-read.table('out.recode.vcf')
+
+setwd('~/Downloads/or_stickleback/')
+GENOME.class<-readVCF('batch_2_sort.vcf.gz', tid='groupI', numcols=19, frompos=1, topos=1000000)
+
 
 ```
 

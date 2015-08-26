@@ -1,0 +1,214 @@
+---
+title: "NGS Exercise 2"
+output: pdf_document
+---
+# Structure at the locus-level: Calculation of $F_{ST}$
+
+## Background
+
+In the first lab we saw that there is some evidence for population structure in *D. variabilis* ticks found at two different collection sites. We now want to determine whether that structure arose as the result of genetic drift or natural selection.
+
+We can evaluate the drift vs. selection hypothesis by considering how the genetic variation is partitioned in the tick population. Genetic variation in populations can exist within subpopulations ("groups") and between groups. We often ask how divergent subpopulations are by considering the partitioning of genetic variation into these categories. If most of the population genetic variation is partitioned **within** groups, we infer that the groups are not highly diverged. In this case, even if there is a high amount of genetic variation in the poplation as a whole, there is no difference in the genetic variation contained within each group.  
+
+Alternatively, if most of the population genetic variation is partitioned **between** groups, we infer that these groups are genetically diverged in some manner. We would then evaluate possible hypotheses for this divergence.
+
+We can measure genetic variation in subpopulations in a number of ways. The classical method is to calculate the Fixation Index, $F_{ST}$ [@Brown1970]. High $F_{ST}$ values indicate genetic variation is partitioned **between** groups and suggests the presence of meaningful population structure.
+
+Evolutionary rates vary throughout the genome, and consequently $F_{ST}$ can vary for different loci under consideration. Just as some loci are highly conserved while others are highly divergent, $F_{ST}$ can be very high for some loci and very low for others. Next-generation sequencing produces data for numerous loci, and we can calculate $F_{ST}$ for each locus. This provides us with a distribution of $F_{ST}$ values across the genome a nd allows us to identify sites that correspond with population structure.
+
+## Objective
+
+Identify $F_{ST}$ outliers from a large SNP dataset and interpret results.
+
+## Required Software
+
+```{r}
+library(qvalue)
+```
+
+## Dataset
+
+<!--- the bayescan output loaded below ignores population structure by site and looks for outliers across both populations simultaneously
+(these are the data from the EEID 2014 poster & from my dissertation)
+-->
+
+```{r, echo=FALSE}
+# load in the Bayescan data so we can use its counts in the subsequent section
+bayescan<-read.table('~/Dropbox/ddRADseq/D_variabilis_Pseudoref/Bayescan_Input_pseudoref_pop_filtered_maxmissing0.75_opossums_NotMis_fst.txt')
+```
+
+We have `r length(bayescan[,1])` quality-filtered SNPs from the tick *Dermacentor variabilis* obtained from a reduced-representation *de novo* sequencing project. A summary data table shows the raw count and frequency for the alleles at each SNP site in two putative *D. variabilis* subpopulations:
+
+```{r, echo=FALSE, eval=FALSE}
+# not needed anymore; code to reformat the bayescan data for exploratory analysis
+bayescan.in<-read.table('~/Dropbox/ddRADseq/Final_Analysis/Structure_by_Site/Final_Merged_Both_Sites_Bayescan_Input_Verif_noHeader.txt', header=T)
+
+# add p=freq(allele A) and q=freq(allele B) columns
+bayescan.in$p <- bayescan.in$A/(bayescan.in$A+bayescan.in$B)
+bayescan.in$q <- bayescan.in$B/(bayescan.in$A+bayescan.in$B)
+
+# convert to wide format
+pop1<-bayescan.in[which(bayescan.in$Population=='Pop1'),]
+pop2<-bayescan.in[which(bayescan.in$Population=='Pop2'),]
+wide.bayescan<-cbind(pop1[,2:6], pop2[,2:6])
+names(wide.bayescan)<-c('Locus_1', 'A_1', 'B_1', 'p_1', 'q_1', 'Locus_2', 'A_2', 'B_2', 'p_2', 'q_2' )
+write.table(wide.bayescan, '~/Desktop/CSU_PopGen_Labs/wide_format_Bayescan.txt', quote=F, row.names=F)
+```
+
+```{r}
+# load the raw data
+bayescan.input<-read.table('~/Desktop/CSU_PopGen_Labs/wide_format_Bayescan.txt', header=T)
+
+# inspect the data format
+head(bayescan.input)
+```
+
+## Assignment
+
+### The Bayescan Model
+
+Bayescan uses a model where SNP allele frequencies are described by parameters for *locus-level* and *population-level* effects. These two parameters are estimated for each SNP in the dataset. Our null hypothesis is that genetic drift is the primary determinant of allele frequencies. When this is the case, the locus-level parameter is 0. If the locus-level parameter for a SNP is significantly different than 0 we have evidence consistent with natural selection acting on allele frequencies. Non-zero locus-level parameters correspond with higher $F_{ST}$ values. Bayescan reports both the calculated $F_{ST}$ and a p-value indicating whether the corresponding locus-level parameter was significantly different from the null expectation of genetic drift. **You are provided with the Bayescan $F_{ST}$ and p-value data.**
+
+Can we predict from the raw allele frequency data which, if any, alleles will have statistically significant $F_{ST}$ values?
+
+```{r}
+# extract the loci that have more than 25% difference in frequency between the two populations
+disparate.freq <- bayescan.input[which(abs(bayescan.input$p_1-bayescan.input$p_2)>0.25),]
+
+# how many were there?
+length(disparate.freq[,1])
+
+par(mar=c(7, 4, 3, 2))
+barplot(rbind(disparate.freq$p_1, disparate.freq$p_2), beside=T, col=c('red', 'blue'), names=disparate.freq$Locus_1, main='Frequency, Allele A', las=2)
+```
+
+#### Questions
+
+Make a graph to show the SNPs with allele frequency differences of more than 35%.
+
+Do you expect any of these will have high and/or statistically significant $F_{ST}$ values? How high should $F_{ST}$ be before you believe there is biologically relevant population structure?
+
+```{r, echo=FALSE, results='hide'}
+# ANSWER KEY
+disparate.freq.35 <- bayescan.input[which(abs(bayescan.input$p_1-bayescan.input$p_2)>0.35),]
+length(disparate.freq.35[,1])
+```
+
+### Multiple Comparisions in Genetic Inference
+
+```{r, echo=F}
+# load in the Bayescan output data
+bayescan.out<-read.table('~/Dropbox/ddRADseq/Final_Analysis/Structure_by_Site/Final_Merged_Both_Sites_Bayescan_Input_fst.txt')
+```
+
+NGS studies, including reduced-representation genome sequencing studies, can identify 1,000s of SNPs. When we calculate $F_{ST}$ or any other descriptive statistic for each SNP, we also want to determine if those values are *statistically significant*; that is, do they differ from our null hypothesis? Recall from basic statistics that we infer significance when our p-values are less than our set $\alpha$ level. The $\alpha$ level is the maximum probability of Type I (false-positive) error; typically $\alpha$ = 0.05. 
+
+If we perform `r length(bayescan.out[,1])` statistical tests -- one for each SNP -- and expect that 5% of our p-values would be statistically significant by chance alone, how many false-positive results would we obtain? What might be the consequence of incorrectly inferring that SNPs have significantly high $F_{ST}$ values when they really do not?
+
+We can correct our p-values to account for the number of comparisions we perform. One typical technique for genetic datasets is to calculate a *qvalue*. The *qvalue* for a SNP will always be higher than the p-value, but if the allele frequencies for the SNP are truly significantly different from our null model of drift then the *qvalue* will still be less than $\alpha$.
+
+How many p-values < 0.05 would we expect due to random chance from a distribution consistent with the null hypothesis? We can draw `r length(bayescan.out[,1])` samples from a standard normal distribution and calculate the probability of making those observations. Because we are using the standard normal distribution, our null hypothesis is that the distribution mean = 0. In a genetic context we might use a different null hypothesis, but for now let's keep things simple with easy (and made-up) data! 
+
+```{r}
+
+# Draw sample data points (test statistics) from a simulated normal distribution
+simulated.values<-rnorm(length(bayescan.out[,1]))
+
+# Determine the probability of making each observation randomly from
+# the given distribution using the function dnorm().
+# dnorm() gives the area under the curve for values 
+# equal to or more extreme than the observed value, 
+# otherwise known as the p-value.
+
+simulated.p<-dnorm(simulated.values)
+
+```
+
+How many observations were made with less than 5% probability from our original distribution? These are the "false positives" -- data that come from our null distribution with mean 0, but are still extreme enough that the probability of observing them is low.
+
+```{r}
+par(mfrow=c(1,2), mar=c(6,2,2,2))
+hist(simulated.values, main='', xlab='Test-statistic Distribution', las=1, freq=F, xlim=c(-4, 4), axes=F)
+axis(side=1)
+hist(simulated.p, main='', xlab='', ylab='', las=1, breaks=seq(0,0.4, 0.05), freq=F, col=c('gray', rep('white', 8)), axes=F)
+axis(side=1)
+mtext(side=1, line=3.5, text='p-value Distribution \nP(data|True Null Hypothesis)')
+text(x=0.021, y=1.2, labels=length(simulated.p[which(simulated.p<0.05)]), cex=0.7)
+```
+
+The gray area of the histogram represents the false-positive p-values < 0.05, which we would like to remove. There were `r length(simulated.p[which(simulated.p<0.05)])` false positives -- quite a lot! 
+
+We can detect and remove these false-positives in many ways, but the standard for genetic data is to perform a False Discovery Rate (FDR) correction by calculating a *q-value*. This is of course more useful when you don't know the underlying distribution from which your data are drawn, but we can illustrate the process with the simulated data. We'll apply the FDR correction to our simulated p-values and compare the resulting distibution of q-values:
+
+```{r}
+# perform the FDR correction with the qvalue() function:
+simulated.q<-qvalue(simulated.p, lambda=0.2)
+
+# plot the comparison
+par(mfrow=c(1,2), mar=c(4,2,2,2))
+
+hist(simulated.p, main='', xlab='', ylab='', las=1, breaks=seq(0,0.4,0.05), freq=F, col=c('gray', rep('white', 8)), axes=F)
+axis(side=1)
+mtext(side=1, line=2.5, text='p-value Distribution')
+text(x=0.021, y=1.2, labels=length(simulated.p[which(simulated.p<0.05)]), cex=0.7)
+
+hist(simulated.q$qvalues, main='', ylab='', xlab='', las=1, breaks=seq(0,0.4,0.05), axes=F)
+axis(side=1)
+mtext(side=1, line=2.5, text='q-value Distribution')
+text(x=0.021, y=100, labels=length(simulated.q$qvalues[which(simulated.q$qvalues<0.05)]), cex=0.7)
+
+```
+
+As expected, none of the q-values are less than 0.05. The q-values are more consistent with our understanding of the original distribution of test-statistics, which were all drawn from the same observation.
+
+**Why can we not just test the `r length(disparate.freq.35[,1])` alleles that we think might have different frequencies in our two hypothesized populations?** Only testing the alleles with highly different frequencies would bias results in our favor and inappropriately ignore the wealth of other SNP data collected. We want to favor the most conservative test appropriate for the data we have, and if there truly is an $F_{ST}$ outlier it should survive the FDR correction.
+
+#### Bayescan Analysis & Results
+
+Performing the $F_{ST}$ calculation on the allele counts using Bayescan requires about one hour of supercomputer time. Instead of having all of you simultaneously access a supercomputer to run the same job, you are provided with the output of the Bayescan analysis on these data.
+
+Bayescan also performs the FDR correction and reports a q-value for each $F_{ST}$ value, so you will not need to perform any additional calculations.
+
+```{r}
+# load in the Bayescan output data
+bayescan.out<-read.table('~/Dropbox/ddRADseq/Final_Analysis/Structure_by_Site/Final_Merged_Both_Sites_Bayescan_Input_fst.txt')
+
+head(bayescan.out)
+
+```
+
+##### How many SNPs have significant $F_{ST}$ at the $\alpha$ = 0.1 level?
+
+Shown below is an example for counting SNPs at the $\alpha$ = 0.1 level.
+
+```{r}
+# Count the number significant at alpha = 0.1
+sig<-bayescan.out$qval[bayescan.out$qval < 0.1]
+length(sig)
+
+# What is the corresponding FST value? (round to 3 digits)
+
+fst<-bayescan.out$fst[bayescan.out$qval < 0.1]
+round(fst, 3)
+
+# Visualize the results
+par(mar=c(5,6,4,2))
+plot(bayescan.out$qval, bayescan.out$fst, pch=16, cex=1.5, cex.axis=1.5, xlim=c(0,1), 
+     ylim=c(0,0.15), bty='n', las=1, cex.lab=1.5, xlab='q-value', ylab='')
+mtext(side=2, line=4, text=expression('F'['ST']), cex=1.5)
+abline(v=0.1, col='red')
+
+```
+
+##### How many SNPs have significant $F_{ST}$ at the $\alpha$ = 0.05 level?
+
+Modify the above code to see if the $F_{ST}$ outlier at $\alpha$ = 0.1 is still significant at $\alpha$ = 0.05.
+
+
+#### Questions
+
+
+Did your expectation about the number of SNPs with significant $F_{ST}$ values differ from the Bayescan results? Why?
+
+What do these results imply about the structuring of the two *D. variabilis* subpopulations?
+

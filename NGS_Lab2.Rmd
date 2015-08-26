@@ -33,15 +33,17 @@ library(qvalue)
 -->
 
 ```{r, echo=FALSE}
+# set working directory
+setwd('~/Desktop/CSU_ChronicWasting/Data/')
 # load in the Bayescan data so we can use its counts in the subsequent section
-bayescan<-read.table('~/Dropbox/ddRADseq/D_variabilis_Pseudoref/Bayescan_Input_pseudoref_pop_filtered_maxmissing0.75_opossums_NotMis_fst.txt')
+bayescan<-read.table('Final_Merged_Both_Sites_Bayescan_Input_fst.txt')
 ```
 
 We have `r length(bayescan[,1])` quality-filtered SNPs from the tick *Dermacentor variabilis* obtained from a reduced-representation *de novo* sequencing project. A summary data table shows the raw count and frequency for the alleles at each SNP site in two putative *D. variabilis* subpopulations:
 
 ```{r, echo=FALSE, eval=FALSE}
 # not needed anymore; code to reformat the bayescan data for exploratory analysis
-bayescan.in<-read.table('~/Dropbox/ddRADseq/Final_Analysis/Structure_by_Site/Final_Merged_Both_Sites_Bayescan_Input_Verif_noHeader.txt', header=T)
+bayescan.in<-read.table('Final_Merged_Both_Sites_Bayescan_Input_Verif_noHeader.txt', header=T)
 
 # add p=freq(allele A) and q=freq(allele B) columns
 bayescan.in$p <- bayescan.in$A/(bayescan.in$A+bayescan.in$B)
@@ -57,7 +59,7 @@ write.table(wide.bayescan, '~/Desktop/CSU_PopGen_Labs/wide_format_Bayescan.txt',
 
 ```{r}
 # load the raw data
-bayescan.input<-read.table('~/Desktop/CSU_PopGen_Labs/wide_format_Bayescan.txt', header=T)
+bayescan.input<-read.table('wide_format_Bayescan.txt', header=T)
 
 # inspect the data format
 head(bayescan.input)
@@ -98,7 +100,7 @@ length(disparate.freq.35[,1])
 
 ```{r, echo=F}
 # load in the Bayescan output data
-bayescan.out<-read.table('~/Dropbox/ddRADseq/Final_Analysis/Structure_by_Site/Final_Merged_Both_Sites_Bayescan_Input_fst.txt')
+bayescan.out<-read.table('Final_Merged_Both_Sites_Bayescan_Input_fst.txt')
 ```
 
 NGS studies, including reduced-representation genome sequencing studies, can identify 1,000s of SNPs. When we calculate $F_{ST}$ or any other descriptive statistic for each SNP, we also want to determine if those values are *statistically significant*; that is, do they differ from our null hypothesis? Recall from basic statistics that we infer significance when our p-values are less than our set $\alpha$ level. The $\alpha$ level is the maximum probability of Type I (false-positive) error; typically $\alpha$ = 0.05. 
@@ -171,7 +173,7 @@ Bayescan also performs the FDR correction and reports a q-value for each $F_{ST}
 
 ```{r}
 # load in the Bayescan output data
-bayescan.out<-read.table('~/Dropbox/ddRADseq/Final_Analysis/Structure_by_Site/Final_Merged_Both_Sites_Bayescan_Input_fst.txt')
+bayescan.out<-read.table('Final_Merged_Both_Sites_Bayescan_Input_fst.txt')
 
 head(bayescan.out)
 

@@ -1,0 +1,151 @@
+---
+title: "NGS Exercise 1"
+output: pdf_document
+---
+Structure at the genome level: Discriminant Analysis of Principle Components
+
+## Background
+
+
+
+## Objective 
+
+Look for population structure that corresponds with tick collection site.
+
+## Required Software
+
+```{r eval=FALSE, tidy=TRUE}
+# for OSX and Windows users, download directly from CRAN
+install.packages('adegenet')
+# for Ubuntu users, download source code and install manually
+install.packages("~/your/path/adegenet", repos=NULL, type="source")
+
+# packages
+library(scales)
+library(adegenet)
+```
+
+## Dataset
+
+Brief description. Mention that it's 0/1/2 output for each individual at each locus, and population info in the header of the snp file.
+
+<!--- Execute the R code but don't show it because it prints too many messages to the output -->
+### Loading genlight data
+```{r echo=FALSE, results='hide', include=FALSE}
+library(scales)
+library(adegenet)
+
+# read in data
+site<-read.snp('~/Dropbox/ddRADseq/Final_Analysis/Structure_by_Site/Final_Pseudoref_minmeanDP20_minGQ25_maf0.05_BOTH_SITES_host_filtered_only_maxmissing0.75_MERGED_FOR_ADEGENET.finalSNPs_site.snp')
+extra.data<-read.csv('~/Desktop/UT_ddRADseq/ddRAD_FinalLibrary_SampleInfo_Full.csv')
+```
+
+<!--- Show the R code but don't execute it -->
+
+```{r eval=FALSE, tidy=TRUE}
+# read in data
+site<-read.snp('~/Dropbox/ddRADseq/Final_Analysis/Structure_by_Site/Final_Pseudoref_minmeanDP20_minGQ25_maf0.05_BOTH_SITES_host_filtered_only_maxmissing0.75_MERGED_FOR_ADEGENET.finalSNPs_site.snp')
+extra.data<-read.csv('~/Desktop/UT_ddRADseq/ddRAD_FinalLibrary_SampleInfo_Full.csv')
+```
+
+## Assignment
+
+Brief background on discriminant analysis, principle components, and discriminant analysis of principle components (DAPC) [@Jombart2010]
+
+**Finding population structure without an *a priori* hypothesis for population membership.**
+You may be unsure about how many subpopulations exist in your population. In this case it is possible to estimate the number of subpopulations. **adegenet** can use likelihood-based methods to select the number of subpopulations most consistent with the genetic data at hand.
+
+
+```{r, eval=FALSE}
+# Adegenet will ask you to determine the number of clusters to return based on the BIC value
+guess.k<-find.clusters(site, n.pca=33)
+
+```
+
+```{r, echo=FALSE}
+fake.bic<-c(400, 250, 125, 100, 105, 107, 108, 110, 111, 115)
+```
+
+You will be prompted to select a number of clusters to retain -- choose something high like 10. You will then see a graph showing BIC value versus number of clusters. The number of clusters with the lowest BIC value is the one most highly supported by the data. 
+
+Here is an example figure of **totally made up data** -- your BIC curve may look different. In this example, the lowest BIC corresponds to `r min(fake.bic)` clusters.
+
+```{r, echo=FALSE}
+plot(seq(1,10,1), fake.bic, col='blue', xlab='Number of clusters', ylab='BIC', main='Value of BIC\nversus number of clusters')
+lines(seq(1,10,1), fake.bic, col='blue')
+```
+
+What is the lowest BIC for the tick dataset? Does this support the hypothesis that the population is structured?
+
+**Testing for structure in hypothesized populations.**
+When you know what your subpopulations the individuals in your study should belong to, you can test specifically for that structure. You provide the DAPC function information on population membership for each individual, and DAPC identifies the genotypes that best differentiate your populations.
+
+```{r}
+# discriminant analysis of principal components to detect clusters
+site.dapc<-dapc(site, pop=site@pop, n.pca=33, n.da=1) # save as many PCs as possible
+par(mar=c(5,5,2,2))
+site.colors2<-c('#fec44f', '#fee391')
+scatter(site.dapc, col=c('#fec44f', '#fee391'), axes=FALSE)
+legend("topright", legend=c('HB', 'SRT'), fill=alpha(site.colors2, 0.5), bty='n')
+```
+
+**Testing the predictive power of DAPC with novel genotypes.**
+Because you tell DAPC exactly which population each indiviual comes from, it's not terribly surprising that you recover evidence in support of your hypothesis. How well do you think DAPC would perform if you gave the method a novel genotype and asked from which population that genotype was derived? If you truly have strong population structure, novel genotypes should be correctly assigned to the appropriate subpopulaton.
+
+Poor model fits will not produce consistent assignment of genotypes despite showing strong evidence of clustering when the full dataset is considered. Do you believe that tick populations are geographically structured? Why or why not? Are there any additional data you'd like to have to help answer this question?
+
+<!--- Write a function students can source and use to do the n-1 predictive sampling. -->
+
+<!--- note: cacheing (sp?) only works when you haven't modified the code! do any plotting in a separate code chunk to avoid redoing the computation -->
+```{r cache=TRUE, echo=FALSE, results='hide'}
+site.host.names<-read.table('~/Dropbox/ddRADseq/Final_Analysis/Structure_by_Site_Host/Final_Pseudoref_minmeanDP20_minGQ25_maf0.05_BOTH_SITES_host_filtered_only_maxmissing0.75_MERGED_FOR_ADEGENET.finalSNPs_site_and_host.snp', skip=6, sep="\n")
+tick.names<-as.character(site.host.names[seq(1, 198, 2),])
+tick.names.formatted<-gsub('> ', '', tick.names, perl=TRUE)
+
+n.minus.one<-function(genind.data){
+  tally<-0
+  assign.site<-c()
+  true.site<-c()
+  tf.site<-c()
+  for(i in 1:nInd(genind.data)){
+    x.rm.site<-site[i] # remove individual i
+    x.kp.site<-site[-i] # keep all but individual i
+    x.kp.dapc.site<-dapc(x.kp.site, n.pca=32, n.da=1)
+    predict.x.rm.site<-predict.dapc(x.kp.dapc.site, newdata=x.rm.site)
+    if(as.character(predict.x.rm.site$assign)==as.character(pop(x.rm.site))){
+      tally=tally+1
+      tf.site<-c(tf.site, 1)
+    }
+    else{
+      tf.site<-c(tf.site, 0)
+    }
+    #print(as.character(predict.x.rm.site$assign))
+    assign.site<-c(assign.site, as.character(predict.x.rm.site$assign))
+    true.site<-c(true.site, as.character(pop(x.rm.site)))
+    #print(tally)
+  }
+  out<-cbind(assign.site, true.site, tf.site)
+  names(out)<-c('Assigned_Pop', 'True_Pop', 'Correct_Assign')
+  out<-data.frame(out)
+  return(out)
+}
+
+what.worked.site<-n.minus.one(site)
+
+hb<-length(subset(what.worked.site, true.site=='HB')[,1])
+srt<-length(subset(what.worked.site, true.site=='SRT')[,1])
+hb.correct<-length(subset(what.worked.site, true.site=='HB' & tf.site=='1')[,1])
+srt.correct<-length(subset(what.worked.site, true.site=='SRT' & tf.site=='1')[,1])
+hb.pc<-hb.correct/hb
+srt.pc<-srt.correct/srt
+
+accuracy.site<-(hb.correct+srt.correct)/length(what.worked.site[,1])
+print(accuracy.site)
+```
+
+What fraction if individuals does DAPC accurately assign to the correct subpopulation? Is this consistent with the results from the full model? Do you believe tick populations are structured geographically?
+
+
+```{r}
+round(accuracy.site, digits=2)
+```

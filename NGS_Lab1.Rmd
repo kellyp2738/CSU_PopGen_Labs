@@ -35,17 +35,20 @@ Brief description. Mention that it's 0/1/2 output for each individual at each lo
 library(scales)
 library(adegenet)
 
+# set working directory
+setwd('~/Desktop/CSU_PopGen_Labs/Data')
+
 # read in data
-site<-read.snp('~/Dropbox/ddRADseq/Final_Analysis/Structure_by_Site/Final_Pseudoref_minmeanDP20_minGQ25_maf0.05_BOTH_SITES_host_filtered_only_maxmissing0.75_MERGED_FOR_ADEGENET.finalSNPs_site.snp')
-extra.data<-read.csv('~/Desktop/UT_ddRADseq/ddRAD_FinalLibrary_SampleInfo_Full.csv')
+site<-read.snp('Final_Pseudoref_minmeanDP20_minGQ25_maf0.05_BOTH_SITES_host_filtered_only_maxmissing0.75_MERGED_FOR_ADEGENET.finalSNPs_site.snp')
+extra.data<-read.csv('ddRAD_FinalLibrary_SampleInfo_Full.csv')
 ```
 
 <!--- Show the R code but don't execute it -->
 
 ```{r eval=FALSE, tidy=TRUE}
 # read in data
-site<-read.snp('~/Dropbox/ddRADseq/Final_Analysis/Structure_by_Site/Final_Pseudoref_minmeanDP20_minGQ25_maf0.05_BOTH_SITES_host_filtered_only_maxmissing0.75_MERGED_FOR_ADEGENET.finalSNPs_site.snp')
-extra.data<-read.csv('~/Desktop/UT_ddRADseq/ddRAD_FinalLibrary_SampleInfo_Full.csv')
+site<-read.snp('Final_Pseudoref_minmeanDP20_minGQ25_maf0.05_BOTH_SITES_host_filtered_only_maxmissing0.75_MERGED_FOR_ADEGENET.finalSNPs_site.snp')
+extra.data<-read.csv('ddRAD_FinalLibrary_SampleInfo_Full.csv')
 ```
 
 ## Assignment
@@ -98,7 +101,7 @@ Poor model fits will not produce consistent assignment of genotypes despite show
 
 <!--- note: cacheing (sp?) only works when you haven't modified the code! do any plotting in a separate code chunk to avoid redoing the computation -->
 ```{r cache=TRUE, echo=FALSE, results='hide'}
-site.host.names<-read.table('~/Dropbox/ddRADseq/Final_Analysis/Structure_by_Site_Host/Final_Pseudoref_minmeanDP20_minGQ25_maf0.05_BOTH_SITES_host_filtered_only_maxmissing0.75_MERGED_FOR_ADEGENET.finalSNPs_site_and_host.snp', skip=6, sep="\n")
+site.host.names<-read.table('Final_Pseudoref_minmeanDP20_minGQ25_maf0.05_BOTH_SITES_host_filtered_only_maxmissing0.75_MERGED_FOR_ADEGENET.finalSNPs_site_and_host.snp', skip=6, sep="\n")
 tick.names<-as.character(site.host.names[seq(1, 198, 2),])
 tick.names.formatted<-gsub('> ', '', tick.names, perl=TRUE)
 

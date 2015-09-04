@@ -217,6 +217,9 @@ dim(vcf.table)
 
 vcf.table[1:10, 1:10]
 
+test<-read.table('full_chrom1_tick_dummy_data.vcf.gz', header=T, comment.char = #)
+
+
 vcf2<-readVcf('full_chrom1_tick_dummy_data.vcf.gz', character('1'))
 vcf2
 str(vcf2)
@@ -233,10 +236,36 @@ geno(header(vcf2))
 samples(header(vcf2))
 
 qual(vcf2)
+min(qual(vcf2))
+max(qual(vcf2))
+hist(qual(vcf2))
+
 
 ref(vcf2)
+alt(vcf2)
 
-test<-read.table('full_chrom1_tick_dummy_data.vcf.gz', header=T, comment.char = #)
+info(vcf2)
+
+
+
+# are all the data SNPs with one alt. allele?
+isSNP<-isSNV(vcf2)
+length(isSNP[which(isSNP==F)])
+
+# if all are SNPs with one alt. allele, we can easily count transitions and transversions
+
+isTransit<-isTransition(vcf2)
+n.Transit<-length(isTransit[which(isTransit==T)]); n.Transit
+
+# there is no fxn for detecting transversions, but since we know there is only one alternate allele for each SNP, if it isn't a transition it must be a transversion
+
+n.Transver<-length(isTransit[which(isTransit==F)]); n.Transver
+
+pie(c(n.Transit, n.Transver), labels=c('Transition', 'Transversion'), col=c('white', 'gray'))
+# note different class for allele.2 -- there can be more than one alternate allele
+
+
+
 
 
 snpmat<-genotypeToSnpMatrix(vcf1)
@@ -267,98 +296,6 @@ $ bgzip full_chrom1_tick_dummy_data.vcf
 $ tabix -f full_chrom1_tick_dummy_data.vcf.gz
 -->
 
-```{r, echo=FALSE, results='hide', include=FALSE}
-library(PopGenome)
-#library(WhopGenome)
-```
-
-```{r, eval=FALSE, tidy=TRUE}
-library(PopGenome)
-#library(WhopGenome)
-```
-
-```{r, eval=FALSE}
-# PopGenome is one of the few R packages that can read VCF files directly.
-# We'll use the pseudoreference mapped tick genome data
-# to calculate a sliding window FST -- totally inappropriate because this is just a subset of the tick genome...
-# But it's a chance to learn how the software works.
-
-# population membership
-setwd('~/Desktop/CSU_PopGen_Labs/')
-
-# explore the raw data in R (but we can't do analysis directly on this file)
-tick.table<-read.table('chrom1_tick_dummy_data.vcf.gz', sep="\t", header=T, comment.char="")
-
-# get population IDs
-pop1<-names(tick.table)[10:92]
-pop1.fix<-sub('.', '-', pop1, fixed=T)
-pop2<-names(tick.table)[93:108]
-
-populations<-list(pop1, pop2)
-
-GENOME.class<-readVCF('full_chrom1_tick_dummy_data.vcf.gz', numcols=2, tid="1", frompos=338, topos=200044)
-
-GENOME.class@n.sites
-GENOME.class@n.biallelic.sites #says there are only 13?! something wrong with numcols argument, I think...
-
-GENOME.class<-set.populations(GENOME.class, populations)
-
-GENOME.class.slide<-sliding.window.transform(GENOME.class,100,100)
-
-GENOME.class.slide<-diversity.stats(GENOME.class.slide)
-PopGplot(GENOME.class.slide@nuc.diversity.within)
-
-GENOME.class<-F_ST.stats(GENOME.class, list(1:83, 84:99))
-get.F_ST(GENOME.fst)
-
-GENOME.class@Pi
-GENOME.class@region.stats
-
-# none of this works right...
-
-# try with stickleback data...
-# vcf file from http://datadryad.org/resource/doi:10.5061/dryad.62hb0/1
-# lines are out of order; fix with 
-# $ vcf-sort batch_2.vcf.gz >> batch_2_sort.vcf
-# then deal with the unfortunate reality that this vcf file has missing GT data as ".",
-# and not "./." -- this means that PopGenome can't parse the data
-# run a short python script that will fix the problem (thx Joe!)... FILE NAMES ARE HARD-CODED
-# $ python GTfix.py
-# this inserts new lines after every line; rawr! fix is with this:
-# $ grep . batch_2_sort_GTfix.vcf >> batch_2_sort_GTrefix.vcf
-# then zip with bgzip and index with tabix (see above html-style comment for the basic structure)
-
-stick<-read.table('batch_2_sort.vcf.gz')
-stick.fix<-read.table('batch_2_sort_GTfix.vcf.gz', sep="\t")
-
-groupX<-stick.fix[which(stick.fix[,1]=='groupX'),]
-
-setwd('~/Downloads/or_stickleback/')
-setwd('~/Desktop/CSU_PopGen_Labs/')
-GENOME.class<-readVCF('batch_2_sort_GTrefix.vcf.gz', tid='groupX', numcols=length(stick.fix[,1]), frompos=min(groupX[,2]), topos=max(groupX[,2]))
-
-GENOME.class<-F_ST.stats(GENOME.class, list(1:250, 251:500))
-get.F_ST(GENOME.class)
-
-GENOME.class@n.sites
-GENOME.class@n.biallelic.sites 
-
-GENOME.class<-set.populations(GENOME.class, populations)
-
-GENOME.class.slide<-sliding.window.transform(GENOME.class)
-
-GENOME.class.slide<-diversity.stats(GENOME.class.slide)
-PopGplot(GENOME.class.slide@nuc.diversity.within)
-<<<<<<< Updated upstream
-
-source("http://bioconductor.org/biocLite.R")
-biocLite("VariantAnnotation")
-library(VariantAnnotation)
-
-```
-
-=======
-```
 
 
 # References

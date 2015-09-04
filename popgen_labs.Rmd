@@ -1,10 +1,10 @@
 ---
 title: "Potential Population Genetics Labs & Content"
 output: pdf_document
-bibliography: /home/antolinlab/Desktop/library.bib
+bibliography: /users/kelly/desktop/library.bib
 ---
 
-<!--- bibliography: /users/kelly/desktop/library.bib -->
+<!--- bibliography: /home/antolinlab/Desktop/library.bib -->
 
 <!--- Set text wrapping for embedded R code -->
 ```{r set-options, echo=FALSE, }
@@ -59,16 +59,68 @@ Some discussion of error rates & necessary coverage depths.
     - RADseq
     - 2b-RAD
     - ddRADseq
+- Paired-end or single-end sequencing
+    
+# Paired-end Illumina NGS Data for Reduced-Representation Sequencing
 
-# NGS Data Processing
+There are several different NGS platforms, but the NGS data we are working with in this class is from Illumina HiSeq Paired-End reads. These data were generated for a reduced-representation library. This data is provided from sequencing facilities in FASTQ format, as specified below.
 
-This will be an overview of the general workflow for handling NGS data derived from reduced-representation and whole genome resequencing projects. Links to online resources and tutorials will be included.
+## Basic format
+
+**Line 1:**
+
+\@Instrument:RunNumber:FlowcellID:Lane:Tile:x-coord:y-coord Read:IsFiltered:ControlNo:SampleID
+
+Fields in the first line with paying attention to:
+
+"Read" indicates if the sequence is read 1 or read 2 in a paired end run. Read 1 and Read 2 will likely be delivered to you in separate files by your sequencing facility. If not, use this field to separate them.
+
+"Sample ID" will be either a number or an Illumina barcode sequence. This indicates the library and *NOT* the individual sample ID.
+
+For more information, see the Illumina data format specification: http://support.illumina.com/content/dam/illumina-support/help/BaseSpaceHelp_v2/Content/Vault/Informatics/Sequencing_Analysis/BS/swSEQ_mBS_FASTQFiles.htm
+
+**Line 2:**
+
+DNA sequence. Consult with your sequencing facility to see to what extent your sequences have been trimmed. Some facilities remove non-informative data (like Illumina primer sequences), while others may not.
+
+**Line 3:**
+
+Spacer.
+
+
+**Line 4:**
+
+Illumina quality score: http://www.illumina.com/documents/products/technotes/technote_understanding_quality_scores.pdf
+
+This information may be used by your assembly software to filter out low quality sequences.
+
+**An example of real Illumina paired-end data:**
+
+\@HWI-D00289:185:C6FE5ANXX:8:1101:1178:2176 1:N:0:ACTTGA
+
+AACTACATGTTCTTCAAATATACTTAGTTGGTCTTTCCAACATTCTCCAA
+
+\+
+
+\<\/\<\/\<\<FFFFFFFFFFFFFBF\<FFFFFFFF\/F\<FFFFFFFFFF\<FFFFFF\<
+
+# Illumina Data Processing
+
+## Quality control
+
+You should always check to make sure the data you receive from the sequencing facility meets your expectations. Did you get the number of reads you expected, and are the reads the right length? Are the unique sample adapter barcodes you used well-represented in the library? How does quality of base calls vary along the length of the read?
+
+You can use FastQC to get a basic summary of quality from your sequences, and there are a few bash one-liners that will help you look at barcode sequences. *If you do not know what that means, fear not!* That's something to learn once you have your data in hand, and is beyond the scope of this course. Your sequencing facility should be able to offer guidance about QC best practices for the type of data they deliver.
 
 ## Demultiplexing
 
-Raw NGS data files are very large and contain the sequences for all individuals in your sample mixed together. The unique sample adapters ligated to the restriction fragments to sequenc
+Raw NGS data files are very large and contain the sequences for all individuals in your sample mixed together. Individuals are separated by sequence of the barcodes ligated to DNA during the library prep.
+
+Sometimes demultiplexing software also looks to make sure the expected enzyme cut sites are present and removes reads missing this sequence. Software may also filter out low-quality sequences.
 
 ## Reference-based assembly
+
+If your organism of interest has a pre-assembled whole genome sequence, you can use it as a reference to help assemble your short read data.
 
 ## *de novo* Assembly
 
@@ -111,27 +163,14 @@ For a more detailed discussion of different data types and their pros/cons, plea
 
 \pagebreak
 
-# Exercise 1: Structure at the locus-level: Calculation of $F_{ST}$
-
-## Background
-
-Genetic variation in populations can exist within subpopulations ("groups") and between groups. We often ask how divergent subpopulations are by considering the partitioning of genetic variation into these categories. If most of the population genetic variation is partitioned **between** groups, we infer that these groups are genetically diverged in some manner. We would then evaluate possible hypotheses for this divergence. 
-
-Alternatively, if most of the population genetic variation is partitioned **within** groups, we infer that the groups are not highly diverged. In this case, even if there is a high amount of genetic variation in the poplation as a whole, there is no difference in the genetic variation contained within each group.
-
-We can measure genetic variation in subpopulations in a number of ways. The classical method is to calculate the Fixation Index, $F_{ST}$ [@Brown1970]. High $F_{ST}$ values indicate genetic variation is partitioned **between** groups and suggests the presence of meaningful population structure.
-
-Evolutionary rates vary throughout the genome, and consequently $F_{ST}$ can vary for different loci under consideration. Just as some loci are highly conserved while others are highly divergent, $F_{ST}$ can be very high for some loci and very low for others. Next-generation sequencing produces data for numerous loci, and we can calculate $F_{ST}$ for each locus. This provides us with a distribution of $F_{ST}$ values across the genome a nd allows us to identify sites that correspond with population structure.
-
-### Exercise options
-
-1. Find a reference mapped dataset and calculate sliding window $F_{ST}$
-2. Take a small subset of the tick dataset and do an $F_{ST}$ outlier analysis using Bayescan (would need to be installed in computer lab or on a remote machine to which students can submit computing jobs).
-3. Take already completed Bayescan output, visualize, and interpret
 
 
 ### _Rough outline for option 1_
-<!---working through the tutorial found here: https://cran.r-project.org/web/packages/PopGenome/vignettes/An_introduction_to_the_PopGenome_package.pdf -->
+<!---working through the tutorial found here: https://cran.r-project.org/web/packages/PopGenome/vignettes/An_introduction_to_the_PopGenome_package.pdf 
+
+Actually, it appears that PopGenome is calling the tick sample names chromosomes, and this is
+confusing the loading. Don't use PopGenome!
+-->
 
 ```{r, echo=FALSE, eval=FALSE}
 # for Windows/OSX
@@ -143,34 +182,6 @@ install.packages("~/Downloads/WhopGenome_0.9.2.tar.gz", repos=NULL, type="source
 # read in the VCF file as a regular table to get some quick info...
 tick.table<-read.table('~/Dropbox/ddRADseq/Final_Analysis/Structure_by_Site/Final_Pseudoref_minmeanDP20_minGQ25_maf0.05_BOTH_SITES_host_filtered_only_maxmissing0.75_MERGED.vcf', sep="\t", header=T, comment.char="")
 
-# column 2 is the position
-min(tick.table[,2])
-max(tick.table[,2])
-
-# pretend we have a single chromosome represented in this VCF file... how many bases would there be?
-200*length(tick.table[,1])
-# 477,400 is a bit long for a chromosome
-
-# make a fake 100,000 base chrom
-tick.subset<-tick.table[1:(100000/200),]
-
-# update the position info to make all the position points unique
-# each row represents a SNP found on a 200bp long concatenated segment of the reference
-# some 200bp stretches have >1 SNP, but since we're making stuff up anyway we won't really worry about that
-for(row in 1:length(tick.table[,1])){
-  tick.table[row,2]=tick.table[row,2]+(row*200)
-}
-
-pop1<-names(tick.table)[10:92]
-pop1.fix<-sub('.', '-', pop1, fixed=T)
-pop2<-names(tick.table)[93:108]
-pop2.fix<-sub('.', '-', pop2, fixed=T)
-
-write.table(pop1.fix, file='~/Desktop/CSU_PopGen_Labs/pop1.txt', quote=F, row.names=F, col.names=F)
-write.table(pop2.fix, file='~/Desktop/CSU_PopGen_Labs/pop2.txt', quote=F, row.names=F, col.names=F)
-
-head(tick.subset)[,1:5]
-tail(tick.subset)[,1:5]
 
 # make it appear as though all those snps are on the same chromosome
 tick.table[,1]<-rep('1', length(tick.table[,1]))
@@ -178,7 +189,7 @@ tick.table[,1]<-rep('1', length(tick.table[,1]))
 # fix the names
 names(tick.table)[1]<-"#CHROM"
 
-write.table(tick.table, '~/Desktop/CSU_PopGen_Labs/chrom1_tick_dummy_data.vcf', quote=FALSE, row.names=FALSE, sep="\t")
+write.table(tick.table, '~/Desktop/CSU_PopGen_Labs/Data/chrom1_tick_dummy_data.vcf', quote=FALSE, row.names=FALSE, sep="\t")
 
 min(tick.subset$POS)
 max(tick.table$POS)
@@ -192,9 +203,41 @@ source("http://bioconductor.org/biocLite.R")
 biocLite("VariantAnnotation")
 biocLite("snpStats")
 library(VariantAnnotation)
+
+setwd('~/Desktop/CSU_PopGen_Labs/')
+
+# dataset with indels
 fl<-system.file('extdata', 'chr7-sub.vcf.gz', package='VariantAnnotation')
 vcf1<-readVcf(fl, 'hg19')
 vcf1
+str(vcf1)
+
+vcf.table<-read.table(fl)
+dim(vcf.table)
+
+vcf.table[1:10, 1:10]
+
+vcf2<-readVcf('full_chrom1_tick_dummy_data.vcf.gz', character('1'))
+vcf2
+str(vcf2)
+info(vcf2)
+info(header(vcf2))
+
+# find out what data are reported in the "FORMAT" column of the VCF file
+geno(vcf2)
+
+# get the definitions for those codes
+geno(header(vcf2))
+
+# return the sample names
+samples(header(vcf2))
+
+qual(vcf2)
+
+ref(vcf2)
+
+test<-read.table('full_chrom1_tick_dummy_data.vcf.gz', header=T, comment.char = #)
+
 
 snpmat<-genotypeToSnpMatrix(vcf1)
 
@@ -244,7 +287,7 @@ library(PopGenome)
 setwd('~/Desktop/CSU_PopGen_Labs/')
 
 # explore the raw data in R (but we can't do analysis directly on this file)
-tick.table<-read.table('chrom1_tick_dummy_data.vcf', sep="\t", header=T, comment.char="")
+tick.table<-read.table('chrom1_tick_dummy_data.vcf.gz', sep="\t", header=T, comment.char="")
 
 # get population IDs
 pop1<-names(tick.table)[10:92]
@@ -265,9 +308,9 @@ GENOME.class.slide<-sliding.window.transform(GENOME.class,100,100)
 GENOME.class.slide<-diversity.stats(GENOME.class.slide)
 PopGplot(GENOME.class.slide@nuc.diversity.within)
 
-slide.GENOME.slide<-F_ST.stats(GENOME.class, list(1:83, 84:99))
-get.F_ST(GENOME.class.slide)
-fst.vals<-GENOME.class.slide@F_ST.stats
+GENOME.class<-F_ST.stats(GENOME.class, list(1:83, 84:99))
+get.F_ST(GENOME.fst)
+
 GENOME.class@Pi
 GENOME.class@region.stats
 
@@ -306,6 +349,7 @@ GENOME.class.slide<-sliding.window.transform(GENOME.class)
 
 GENOME.class.slide<-diversity.stats(GENOME.class.slide)
 PopGplot(GENOME.class.slide@nuc.diversity.within)
+<<<<<<< Updated upstream
 
 source("http://bioconductor.org/biocLite.R")
 biocLite("VariantAnnotation")
@@ -313,3 +357,9 @@ library(VariantAnnotation)
 
 ```
 
+=======
+```
+
+
+# References
+>>>>>>> Stashed changes

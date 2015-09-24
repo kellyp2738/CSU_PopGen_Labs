@@ -19,7 +19,7 @@ opts_chunk$set(tidy.opts=list(width.cutoff=60))
 
 # Next generation sequencing (NGS) data can be used to address many biological questions
 
-Next-generation sequencing commonly refers to a set of DNA sequencing platforms that perform *short-read* sequencing. These platforms are multiplexed and high-throughput -- they can simultaneously sequence 100s of individuals and produce 100s of millions of reads. This DNA sequence data is then used to identify variants within populations. We can detect single nucleotide polymorphisms (SNPs), insertion/deletions, and larger scale genomic variation like inversions and chromosome duplications using NGS data.
+Next-generation sequencing commonly refers to a set of DNA sequencing platforms that perform *short-read* sequencing. These platforms are multiplexed and high-throughput -- they can simultaneously sequence 100s of individuals and produce 100s of millions of reads. This DNA sequence data are then used to identify variants within populations. We can detect single nucleotide polymorphisms (SNPs), insertion/deletions, and larger scale genomic variation like inversions and chromosome duplications using NGS data.
 
 There are a number of biological questions addressed with NGS data, and a number of sequencing platforms for gathering those data. Instead of attempting to cover the breadth of these technologies and applications, our labs will focus only on population genetics questions answered with sequences obtained from the Illumina HiSeq platform. Subsequent labs will specifically address the analyses listed in bold below.
 
@@ -36,11 +36,13 @@ Inferring true sequence identity from the NGS data delivered is a rich area of r
 
 ## Paired-end Illumina NGS Data for Reduced-Representation Sequencing
 
-While you will be provided with assembled NGS data, it is important to have a bit of context for how the DNA sequences were obtained. The NGS data we are working with in this class is from Illumina HiSeq Paired-End reads (read = one stretch of DNA sequence data, in this case 100bp). These the reads were made from a reduced-representation library. This means we do not have sequence data for the entire genome, but instead have sequence data from a sample of spots distributed across the genome.
+While you will be provided with assembled NGS data, it is important to have a bit of context for how the DNA sequences were obtained. The NGS data we are working with in this class is from Illumina HiSeq Paired-End reads (read = one stretch of DNA sequence data, in this case 100bp). These the reads were made from a reduced-representation library. This means we do not have sequence data for the entire genome, but instead have sequence data from a sample of spots distributed across the genome. 
+
+Reduced-representation sequencing is fundamentally different from whole-genome resequencing, which uses NGS technology to sequence the entire genome of every individual in the study population. Whole-genome resequencing is useful for detecting variation at all scales, from SNPs to inversions and chromosome duplications. In contrast, the short and sparse reads obtained from reduced-representation sequencing are best suited for identifing only SNPs. Despite this drawback, reduced-representation sequencing is a cost-effective way to study large populations. As sequencing prices decrease, population genetics research is expected to shift away from using reduced-representation sequence data in favor of whole-genome resequencing data. But for now, reduced-representation techniques are widely used in population genetics.
 
 ![paired-end](/Users/Kelly/Desktop/CSU_PopGen_Labs/PairedEndSchematic_NoTitle.png)
 
-*Figure 1. Relationship between genome and sequence data derived through Illumina paired-end sequencing. Only restriction fragments that are within a certain size range are sequenced, and only the ends of restriction fragments are sequenced. This produces a **reduced-representation** of the genome.*
+*Figure 1. Relationship between genome and sequence data derived through Illumina paired-end sequencing. Only the ends of DNA fragments that are within a certain size range are sequenced. This produces a **reduced-representation** of the genome.*
 
 ## Raw sequence data files use FASTQ format
 
@@ -129,17 +131,21 @@ $ tabix -f full_chrom1_tick_dummy_data.vcf.gz
 ```{r read-data-silent, echo=FALSE, cache=TRUE, results='hide'}
 # read everything in with file paths properly formatted, but don't display code
 # subsequent code blocks to load data are for display only (not executed)
-setwd('~/Desktop/CSU_PopGen_Labs/')
-tick.vcf<-suppressWarnings(readVcf('Data/full_chrom1_tick_dummy_data.vcf.gz', character('1')))
+setwd('~/Desktop/CSU_PopGen_Labs')
+tick.vcf<-suppressWarnings(readVcf('Data/tick_snps.vcf.gz', character('1')))
 ```
 
 \pagebreak
 
 # Exercises
 
-Complete the following steps in R. Your end result should be a script that loads the requisite packages and has annotated code explaining your answers to the numbered questions.
+## Dataset
+You will be working with a dataset in VCF format that describes SNP variation in American dog ticks (*Dermacentor variabilis*). These ticks carry wildlife pathogens and feed on a large diversity of wildlife host species. The ticks were collected directly from host animals at two different locations in Texas to address questions about how genotype correlates with collection site and host species. You will work with these data in subsequent exercises as well.
 
-Load the VariantAnnotation R package, which is available through Bioconductor. Simply copy and paste the following lines into your script. You will only need to run these commands once to install the package. 
+## Instructions
+Complete the following steps in R. Your end result should be a script that loads the requisite packages and walks through the analyses described. Write answers to specific questions in the comments of your code.
+
+Load the VariantAnnotation R package, which is available through BioConductor. Simply copy and paste the following lines into your script. You will only need to run these commands once to install the package. 
 
 ```{r install-pkgs, eval=FALSE}
 # utility just for reading VCF files into R
@@ -157,14 +163,43 @@ library(VariantAnnotation)
 library(VariantAnnotation)
 ```
 
-####1. Load the data.
+####1. Download and load the data.
 
-Use the *str()* function to look at the structure of the VCF data object.
+Download the data from here:
+```
+/Dropbox/BZ 577/Week 4/tick_snps.vcf.gz
+```
+and save in your prefered directory.
+
+You **cannot** load this dataset using the GUI interface in R/R Studio/R Commander. You will have to use the *readVcf()* function in the VariantAnnotation package. You will therefore either need to provide the full file path to where you have saved the data or use the *setwd()* function to set your working directory. Your working directory is the directory (folder) where R will look for any data you try to open using functions. It is also the directory to which any output files, such as figures, will save unless otherwise specified.
+
+Note that the structure of the file paths for Mac and Windows are different.
+
+**Working directory example (Mac)** 
+
+```{r setwd-example, eval=FALSE}
+setwd('/Users/Kelly//Dropbox/BZ 577/Week 4/') # set the working directory
+getwd() # print the  working directory
+```
+
+**Working directory example (Windows)**
+
+```{r setwd-pc-ex, eval=FALSE}
+setwd("C:/Documents and Settings/Data")
+getwd() # print the working directory
+```
+
+```{r include=FALSE}
+# put the working dir back to the correct value
+setwd('~/Desktop/CSU_PopGen_Labs')
+```
+
+Once the data are loaded, use the *str()* function to look at the structure of the VCF data object.
 
 
 ```{r read-data, eval=FALSE}
 # import the VCF file
-tick.vcf<-suppressWarnings(readVcf('full_chrom1_tick_dummy_data.vcf.gz', character('1')))
+tick.vcf<-suppressWarnings(readVcf('tick_snps.vcf.gz', character('1')))
 # look a the data structure
 str(tick.vcf)
 ```
@@ -197,12 +232,12 @@ samples(header(tick.vcf))
 
 Genotype quality is an important metric used to decide if we believe SNPs are the result of sequencing error or meaninful variation. VCF files report Phred-like quality scores. These are integers calculated as *-10 log (p)*, where *p* is the probability of an error. Lower values of *p* produce higher quality scores; high variant call quality means high confidence that the variation is real. 
 
-Use the *qual()* function {package: VariantAnnotation} to look at the quality scores in the dataset, and use the *min()* and *max()* functions {base} to determine the minimum and maximum quality scores observed. 
+Use the *qual()* function to look at the quality scores in the dataset, and use the *min()* and *max()* functions to determine the minimum and maximum quality scores observed. 
   
 <!--- explanation of qual 999: https://genegrid.genomatix.com/grid/doc/help/faq -->
 
-```{r qual-VCF, eval=FALSE, echo=FALSE}
-# qual() provides the quality scores for the SNPs
+```{r qual-VCF, eval=FALSE}
+# qual() returns the quality scores for the SNPs
 qual(tick.vcf)
 
 # what are the minimum and maximum quality scores?
@@ -213,6 +248,8 @@ max(qual(tick.vcf))
 ####4. Visualize the quality scores.
 
 Use the *hist()* function to look at the distribution of quality scores. Label the axes of your histogram appropriately (see *?hist()* for more details on how to format your histogram). Describe the distribution you see.
+
+\pagebreak
 
 ####5. Relate quality scores to probability of genotyping error
 
@@ -260,6 +297,7 @@ There is not function to directly look for transversions, but if a SNP with only
 
 ```{r mutation-type, results='hide'}
 isTransit<-isTransition(tick.vcf)
+
 n.Transit<-length(isTransit[which(isTransit==T)]); n.Transit
 
 n.Transver<-length(isTransit[which(isTransit==F)]); n.Transver
@@ -273,6 +311,7 @@ Counts are often visualized using barplots or pie charts. Use the *pie()* and *b
 pie(c(n.Transit, n.Transver), labels=c('Transition', 'Transversion'), col=c('white', 'gray'))
 ```
 
+\pagebreak
 
 # Summary of functions used
 
@@ -296,6 +335,7 @@ Functions in the *base* library are functions that are installed and automatical
 
 |Function|Library|Use|
 |:-------|:------------|:---|
+|setwd()|base|set working directory|
 |readVcf()|VariantAnnotation|read a VCF file|
 
 ## Functions for accessing data

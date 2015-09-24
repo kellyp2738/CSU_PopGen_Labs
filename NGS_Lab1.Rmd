@@ -6,13 +6,121 @@ Structure at the genome level: Discriminant Analysis of Principle Components
 
 ## Background
 
+Brief background on discriminant analysis, principle components, and discriminant analysis of principle components (DAPC) [@Jombart2010]
+
+## Analysis of Next Generation Sequencing-derived Multilocus Genotypes
+
+Last week you considered two methods for analyzing population structure with multilocus genotype data: assignment tests (GeneClass2) and k-means clustering (STRUCTURE). This week we will expand our tool-kit for inferring population structure to include techniques that are suitable for the much larger multilocus datasets derived from Next Generation Sequencing (NGS). We will specifically focus on methods for **diploid** SNP genotypes.
+
+### *k*-means clustering can be applied to NGS data
+
+You previously employed STRUCTURE to determine population clusters, and in fact STRUCTURE can handle small NGS datasets as well. Instead of re-using STRUCTURE with NGS data, you will use the R package ***adegenet*** to perform *k*-means clustering on NGS data.
+
+### Discriminant Analysis of Principal Components (DAPC): an alternative to *k*-means clustering for NGS data
+
+Discriminant analysis and principal components are two different mathematical techniques for processing data. They can be combined to produce quality estimates of the number of subpopulations present in a multilocus genotype dataset.
+
+#### What is principal components analysis (PCA)?
+
+Principal components analysis is a technique used to describe key axes of variation in multi-dimensional data sets. We will observe variation in genotype between individuals, and that individual variation may in fact be the result of subpopulation differences. However, it is difficult to determine what variation is meaningful and what
+
+
+```{r echo=FALSE}
+
+# A brief primer on principal components analysis
+
+library(scales)
+
+n = 100
+# 0 = homozygous A
+# 1 = heterozygous
+# 2 = homozytous a
+pop1.snp1<-rep(0, 100)
+pop2.snp1<-c(rep(0, 80), rep(1, 15), rep(2, 5))
+pop1.snp2<-c(rep(0, 25), rep(1, 50), rep(2, 25))
+pop2.snp2<-c(rep(0, 25), rep(1, 50), rep(2, 25))
+
+together.snp1 = c(pop1.snp1, pop2.snp1)
+together.snp2 = c(pop1.snp2, pop2.snp2)
+together.snp3 = sample(together.snp1, 200)
+together.snp4 = sample(together.snp1, 200)
+together.snp5 = sample(together.snp1, 200)
+together.snp6 = sample(together.snp1, 200)
+together.snp7 = sample(together.snp1, 200)
+together.snp8 = sample(together.snp1, 200)
+together.snp9 = sample(together.snp1, 200)
+together.snp10 = sample(together.snp1, 200)
+together.snp11 = sample(together.snp1, 200)
+together.snp12 = sample(together.snp1, 200)
+together.snp13 = sample(together.snp1, 200)
+together.snp14 = sample(together.snp1, 200)
+
+full.data <- cbind(together.snp1, together.snp2, together.snp3, together.snp4, together.snp5, together.snp6, together.snp7, together.snp8,
+                   together.snp9, together.snp10, together.snp11, together.snp12, together.snp13, together.snp14)
+full.data<-data.frame(full.data)
+names(full.data)<-c('SNP 1', 'SNP 2', 'SNP 3', 'SNP 4', 'SNP 5', 'SNP 6', 'SNP 7', 'SNP 8', 'SNP 9', 'SNP 10', 'SNP 11', 'SNP 12', 'SNP 13', 'SNP 14')
+head(full.data)
+```
+
+We can detect population structure by looking to see if some multilocus genotypes are more common than others (with our expections based on a fully mixed population). A naive approach might be to plot genotypes against each other. It would be difficult to visualize genotype space in 8 dimensions, but we can do some pairwise plots to see how genotypes at different loci sort with each other.
+
+Genetic data, particularly from NGS studies, is high-dimension data. The data consists of a genotype measure for each individual at each SNP site -- and there are likely 1000s of SNPs in your data. Synthesizing that amount of information into a measure of population structure requires in many cases reducing the dimensionality of the data.
+
+One method for dimension reduction in Principal Components Analysis (PCA). PCA has uses in many different fields of study, and is employed in multilocus genotype analysis to identify axes upon which most of the genetic variation lies.
+
+Consider the following example of simulated SNP genotype data. In this hypothetical scenario, 200 individuals have been genotypes at 8 SNP loci. Their genotypes are coded as 0, 1, or 2. 0 means homozygous for the reference allele (typically the major allele in the population), 1 means heterozygous, and 2 means homozygous for the minor allele.
+
+
+```{r, echo=FALSE}
+full.pca <-prcomp(full.data)
+scores = as.data.frame(full.pca$x)
+
+par(mfrow=c(1,3))
+plot(jitter(full.data[,1]), jitter(full.data[,2]), pch=16, col=alpha('red', 0.5), axes=FALSE, xlab=c('Genotype SNP 1'), ylab=c('Genotype SNP 2'))
+axis(side=1, at=c(0, 1, 2), labels=c('AA', 'Aa', 'aa'), tick=F)
+axis(side=2, at=c(0, 1, 2), labels=c('BB', 'Bb', 'bb'), tick=F)
+plot(jitter(full.data[,1]), jitter(full.data[,3]), pch=16, col=alpha('red', 0.5), axes=FALSE, xlab=c('Genotype SNP 1'), ylab=c('Genotype SNP 3'))
+axis(side=1, at=c(0, 1, 2), labels=c('AA', 'Aa', 'aa'), tick=F)
+axis(side=2, at=c(0, 1, 2), labels=c('CC', 'Cc', 'cc'), tick=F)
+plot(jitter(full.data[,2]), jitter(full.data[,3]), pch=16, col=alpha('red', 0.5), axes=FALSE, xlab=c('Genotype SNP 2'), ylab=c('Genotype SNP 3'))
+axis(side=1, at=c(0, 1, 2), labels=c('BB', 'Bb', 'bb'), tick=F)
+axis(side=2, at=c(0, 1, 2), labels=c('CC', 'Cc', 'cc'), tick=F)
+```
+
+How many populations can you discern from looking at these pairwise plots? You would need to look at `r choose(length(full.data[1,]), 2)` to attempt to infer population structure using this method.
+
+
+
+```{r echo=FALSE}
+par(mfrow=c(1,1))
+plot(scores$PC1, scores$PC2, pch=16, col=alpha('red', 0.5), axes=FALSE, xlab=c('PC1'), ylab=c('PC2'))
+
+axis(side=1)
+axis(side=2)
+```
+
+Also something about k-means clustering.
+
+### Discriminant Analysis of Principal Components
 
 
 ## Objective 
 
 Look for population structure that corresponds with tick collection site.
 
-## Required Software
+# Exercises
+
+## Dataset
+
+Brief description. Mention that it's 0/1/2 output for each individual at each locus, and population info in the header of the snp file.
+
+## Instructions
+
+Complete the following steps in R. Your end result should be a script that loads the requisite packages and walks through the analyses described. Write answers to specific questions in the comments of your code.
+
+####1. Install and load the required packages.
+
+Install *adegenet* and *scales*:
 
 ```{r eval=FALSE, tidy=TRUE}
 # for OSX and Windows users, download directly from CRAN
@@ -25,9 +133,13 @@ library(scales)
 library(adegenet)
 ```
 
-## Dataset
+####2. Download and load the data.
 
-Brief description. Mention that it's 0/1/2 output for each individual at each locus, and population info in the header of the snp file.
+Data for this exercise is in 
+
+'''
+/Dropbox/BZ 577/Week 6/
+'''
 
 <!--- Execute the R code but don't show it because it prints too many messages to the output -->
 ### Loading genlight data
@@ -51,13 +163,14 @@ site<-read.snp('Final_Pseudoref_minmeanDP20_minGQ25_maf0.05_BOTH_SITES_host_filt
 extra.data<-read.csv('ddRAD_FinalLibrary_SampleInfo_Full.csv')
 ```
 
-## Assignment
-
-Brief background on discriminant analysis, principle components, and discriminant analysis of principle components (DAPC) [@Jombart2010]
-
-**Finding population structure without an *a priori* hypothesis for population membership.**
+####3. Finding population structure without an *a priori* hypothesis for population membership.
 You may be unsure about how many subpopulations exist in your population. In this case it is possible to estimate the number of subpopulations. **adegenet** can use likelihood-based methods to select the number of subpopulations most consistent with the genetic data at hand.
 
+####3.a Estimate the number of clusters in the population using successive k-means clustering.
+
+Adegenet will evaluate a number of potential subpopulations (clusters), *k*, and compute the Bayesian Information Criterion (BIC) for each value of *k*. BIC values are widely used in model selection. They allow researchers to directly compare models (when certain assumptions are met; see **some citation I'll add**). In this context, the models for different numbers of subpopulations are compared with BIC. The number of subpopulations *k* corresponding to the lowest BIC is the most highly supported value of *k*.  
+
+The adegenet function *find.clusters()* will perform the successive *k*-means clustering and compute the BIC for you. The function is interactive; once 
 
 ```{r, eval=FALSE}
 # Adegenet will ask you to determine the number of clusters to return based on the BIC value
@@ -71,7 +184,7 @@ fake.bic<-c(400, 250, 125, 100, 105, 107, 108, 110, 111, 115)
 
 You will be prompted to select a number of clusters to retain -- choose something high like 10. You will then see a graph showing BIC value versus number of clusters. The number of clusters with the lowest BIC value is the one most highly supported by the data. 
 
-Here is an example figure of **totally made up data** -- your BIC curve may look different. In this example, the lowest BIC corresponds to `r min(fake.bic)` clusters.
+Here is an example figure of **totally made up data** -- your BIC curve WILL look different. In this example, the lowest BIC corresponds to `r min(which.min(fake.bic))` clusters.
 
 ```{r, echo=FALSE}
 plot(seq(1,10,1), fake.bic, col='blue', xlab='Number of clusters', ylab='BIC', main='Value of BIC\nversus number of clusters')
@@ -100,7 +213,7 @@ Poor model fits will not produce consistent assignment of genotypes despite show
 <!--- Write a function students can source and use to do the n-1 predictive sampling. -->
 
 <!--- note: cacheing (sp?) only works when you haven't modified the code! do any plotting in a separate code chunk to avoid redoing the computation -->
-```{r cache=TRUE, echo=FALSE, results='hide'}
+```{r cache=TRUE, echo=FALSE, results='hide', eval=FALSE}
 site.host.names<-read.table('Final_Pseudoref_minmeanDP20_minGQ25_maf0.05_BOTH_SITES_host_filtered_only_maxmissing0.75_MERGED_FOR_ADEGENET.finalSNPs_site_and_host.snp', skip=6, sep="\n")
 tick.names<-as.character(site.host.names[seq(1, 198, 2),])
 tick.names.formatted<-gsub('> ', '', tick.names, perl=TRUE)
@@ -149,6 +262,6 @@ print(accuracy.site)
 What fraction if individuals does DAPC accurately assign to the correct subpopulation? Is this consistent with the results from the full model? Do you believe tick populations are structured geographically?
 
 
-```{r}
+```{r, eval=FALSE}
 round(accuracy.site, digits=2)
 ```

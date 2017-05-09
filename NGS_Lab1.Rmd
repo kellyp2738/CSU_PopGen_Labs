@@ -4,12 +4,13 @@ title: |
   | BZ/MIP 577 Fall 2015
 author: Kelly Pierce
 output: pdf_document
+bibliography: library.bib
 ---
 # Part I: Detecting population structure at the genome level 
 
 ## Analysis of Next Generation Sequencing-derived Multilocus Genotypes
 
-Last week you considered two methods for analyzing population structure with multilocus genotype data: detection of subpopulation clusters (STRUCTURE) and assignment tests (GeneClass2). This week we will expand our tool-kit for inferring population structure to include techniques that are suitable for the much larger multilocus datasets derived from Next Generation Sequencing (NGS) data. We will specifically focus on methods for **codominant, biallelic** SNP genotypes implemented in the R package ***adegenet*** . 
+Last week you considered two methods for analyzing population structure with multilocus genotype data: detection of subpopulation clusters (STRUCTURE) and assignment tests (GeneClass2). This week we will expand our tool-kit for inferring population structure to include techniques that are suitable for the much larger multilocus datasets derived from Next Generation Sequencing (NGS) data. We will specifically focus on methods for **codominant, biallelic** SNP genotypes implemented in the R package ***adegenet***. 
 
 ### Objectives
 1. Find population structure without an *a priori* hypothesis about group membership using clustering methods.
@@ -17,13 +18,13 @@ Last week you considered two methods for analyzing population structure with mul
 
 ### Discriminant Analysis of Principal Components (DAPC)
 
-Discriminant analysis of principal components combines (somewhat predictably) discriminant analysis (DA) and principal components analysis (PCA) to estimate the number of subpopulations present in a multilocus genotype dataset. The first step is to perform a PCA on the genotype data, reducing its dimensionality and capturing much of the variation in a set of principal components for further analysis. DA can be performed on the reduced data set to reveal clustering that might suggest population structure. *Figure 1* provides an overview of how PCA and DA both work to describe variation in a data set. 
+Discriminant analysis of principal components combines (somewhat predictably) discriminant analysis (DA) and principal components analysis (PCA) to estimate the number of subpopulations present in a multilocus genotype dataset. The first step is to perform a PCA on the genotype data, reducing its dimensionality and capturing much of the variation in a set of principal components for further analysis. DA is then performed on the reduced data set to reveal clustering that might suggest population structure. *Figure 1* provides an overview of how PCA and DA both work to describe variation in a data set. 
 
 #### Background on principal components analysis (PCA) 
 
 We observe genotypic variation in SNP datasets, and that variation may be the result of subpopulation differences. But with potentially thousands of SNPs to consider, looking for meaningful patterns in variation is a daunting task.
 
-PCA is a technique used to describe key axes of variation in multi-dimensional data, including those from multilocus SNP studies. PCA transforms data so that it can be plotted on axes that describe the **most** variation in the data; these axes are the "principal components". This reduces the dimensionality of the data by capturing meaningful variation in a few axes and allowing others to be reasonably ignored. For a really excellent visualization of how PCA transforms data to maximize variation along a single axis, check out this page: http://setosa.io/ev/principal-component-analysis/
+PCA is a technique used to describe key axes of variation in multi-dimensional data, including those from multilocus SNP studies. PCA transforms data so that it can be plotted on axes that describe the **most** variation in the data; these axes are the "principal components". This reduces the dimensionality of the data by capturing meaningful variation in a few axes and allowing others to be reasonably ignored (though it is important to retain enough principal components to capture as much of the variation as possible). For a really excellent visualization of how PCA transforms data to maximize variation along a single axis, check out this page: http://setosa.io/ev/principal-component-analysis/
 
 Rarely does a single principal component capture a large fraction of variation in a genetic dataset. Typically many principal components must be retained. While we will not be able to visualize all of the principal component axes, performing the PCA will help us pull out meaningful variation.
 
@@ -49,12 +50,25 @@ grid.raster(img)
 |evaluation|negative log likelihood|Bayesian Information Criterion (BIC)|
 |approx. run time|somewhat slow, esp. with large datasets|very quick ID of clusters|
 |ploidy|haploid to polyploid|haploid to polyploid|
-|linkage|none or weak linkage|none|
+|linkage|none or weak linkage|none, but robust to violation|
 |marker type|codominant or dominant/recessive; see manual|codominant|
 
-# Background & Data
+# Data
 
-You will be working with a reformatted version of the American dog tick (*Dermacentor variabilis*) SNP data. These ticks carry wildlife pathogens and feed on a large diversity of wildlife host species. American dog ticks have an interesting life history. While they spend most of their lives in the environment either digesting blood or looking for new hosts, they mate on their host animals. This makes host animals islands of sorts -- the possible available mates for a tick are only those other ticks on the same animal at the same time. If some American dog ticks prefer one host species, and another segment of the tick population prefers a different host species, that reproductive isolation may lead to the development of population structure. We hypothesized that this structure would exist and could tell us something about the feeding behavior of ticks. We collected ticks directly from raccoons and opossums at two different locations in Texas to address questions about how genotype correlates with collection site and host species (*Figure 2*). Consequently there are four possible subpopulations: site 1 - raccoon, site 1 - opossum, site 2 - raccoon, and site 2 - opossum.
+```{r echo=FALSE, results='hide', include=FALSE}
+library(scales)
+library(adegenet)
+
+# set working directory
+setwd('~/Desktop/CSU_PopGen_Labs/Data')
+
+# read in data
+both.sites<-read.snp('Ticks_from_two_sites.snp', parallel=F)
+```
+
+You will be working with a reformatted version of the American dog tick (*Dermacentor variabilis*) SNP data. These ticks carry wildlife pathogens and feed on a large diversity of wildlife host species. American dog ticks have an interesting life history. While they spend most of their lives in the environment either digesting blood or looking for new hosts, they mate on their host animals. This makes host animals islands of sorts -- the possible available mates for a tick are only those other ticks on the same animal at the same time. If some American dog ticks prefer one host species, and another segment of the tick population prefers a different host species, that reproductive isolation may lead to the development of population structure. We hypothesized that this structure would exist and could tell us something about the feeding behavior of ticks. 
+
+We collected ticks directly from raccoons and opossums at two different locations in Texas to address questions about how genotype correlates with collection site and host species (*Figure 2*). Consequently there are four possible subpopulations: site 1 - raccoon, site 1 - opossum, site 2 - raccoon, and site 2 - opossum. Approximately 3% of the tick genome was sequenced in a reduced-representation library. We sequenced `r nInd(both.sites)` ticks and obtained `r nLoc(both.sites)` SNP loci. 
 
 ```{r fig.width=3, , fig.align='center', echo=FALSE}
 library(png)
@@ -68,7 +82,7 @@ You will evaluate a series of hypotheses regarding spatial and by-host species p
 
 ## SNP Data Format
 
-You will use DAPC in *adegenet* to test these hypotheses. *Adegenet* requires a specific data format for input, *genind* (not the VCF files you have experience working with). You will find if you continue to work with NGS data that each analysis package requires a different data format. Sometimes you can use software like CONVERT to change data formats; other times you will need to do more tedious by-hand reformatting work. CONVERT does not output to  We have spared you the hassle of reformatting and provided you with the SNP data in "*genind*" format. 
+You will use DAPC in *adegenet* to test these hypotheses. *Adegenet* requires input data to be in *genind* format (not the VCF files you have experience working with). You will find if you continue to work with NGS data that each analysis package requires a different data format. Sometimes you can use software like CONVERT to change data formats; other times you will need to do more tedious by-hand reformatting work. CONVERT does not output to *genind* format, but the proper format can be achieved manually. We have spared you the hassle of manually reformatting the VCF file and provided you with the SNP data in *genind* format. 
 
 The *genind* format has the following structure:
 
@@ -124,28 +138,17 @@ library(adegenet)
 
 Data for this exercise is in 
 
-'''
-/Dropbox/BZ 577/Week 6/
-'''
+```
+/Dropbox/BZ 577/Week 5-6/BiallelicSNP_Analysis/
+```
 
 Execute the following code to load the data and inspect its structure. Remember to set your working directory appropriately!
-
-```{r echo=FALSE, results='hide', include=FALSE}
-library(scales)
-library(adegenet)
-
-# set working directory
-setwd('~/Desktop/CSU_PopGen_Labs/Data')
-
-# read in data
-both.sites<-read.snp('Ticks_from_two_sites.snp')
-```
 
 <!--- Show the R code but don't execute it -->
 
 ```{r eval=FALSE, tidy=TRUE}
 # read in data
-both.sites<-read.snp('Ticks_from_two_sites.snp')
+both.sites<-read.snp('Ticks_from_two_sites.snp', parallel=F)
 
 # look at the data structure
 both.sites
@@ -170,9 +173,7 @@ nInd(both.sites)
 
 #### Hypothesis 1: There is some structuring of the tick population, but we do not know how those subpopulations should be defined.
 
-While we reasonably expect up to four subpopulations in the tick SNP dataset, for illustrative purposes we can see how DAPC is applied when you have no *a priori* hypothesis regarding population membership.
-
-As with STRUCTURE, you must indicate how many subpopulations you think are in your dataset. While we have an idea what the subpopulations *should* be for the tick dataset, it is valuable to understand how you would approach this analysis without such a hypothesis. The typical approach when you do not know how many subpopulations there might be is to try a range of different subpopulation numbers and use a metric to determine the best fitting model. STRUCTURE uses negative log likelihoods to determine the most supported number of subpopulations. The DAPC clustering process, on the other hand, uses the Bayesian Information Criterion (BIC). BIC is derived from negative log likelihoods, but favors models with fewer parameters to avoid overfitting the model to the data. 
+As with STRUCTURE, DAPC requires that you indicate how many subpopulations you think are in your dataset. While we have an idea what the subpopulations *should* be for the tick dataset, it is valuable to understand how you would approach this analysis without such a hypothesis. The typical approach when you do not know how many subpopulations there might be is to try a range of different subpopulation numbers and use a metric to determine the best fitting model. STRUCTURE uses negative log likelihoods to determine the most supported number of subpopulations. The DAPC clustering process, on the other hand, uses the Bayesian Information Criterion (BIC). BIC is derived from negative log likelihoods, but favors models with fewer parameters to avoid overfitting the model to the data. 
 
 The adegenet function *find.clusters()* will perform the DAPC clustering and compute the BIC for each number of subpopulations. The function is interactive; it will present a graph of number of clusters vs BIC from which you can choose the number of clusters to retain. You will want to choose the number of clusters corresponding the the **lowest BIC**. The shape of the curve is also informative. For example, BIC values that are close to each other suggest that there is insufficient information to determine the number of clusters. If two BIC scores are within two points you cannot definitively favor one over the other. Larger differences are more meaningful and can be used to rule out numbers of subpopulations that are not supported by the data.
 
@@ -180,7 +181,7 @@ The adegenet function *find.clusters()* will perform the DAPC clustering and com
 fake.bic<-c(400, 250, 125, 100, 105, 107, 108, 110, 111, 115)
 ```
 
-Here is an example figure of **totally made up data** -- your BIC curve WILL look different. In this example, the lowest BIC corresponds to `r min(which.min(fake.bic))` clusters.
+Here is an example figure of **totally made up data** -- your BIC curve WILL look different. 
 
 ```{r, echo=FALSE}
 plot(seq(1,10,1), fake.bic, col='blue', xlab='Number of clusters', ylab='BIC', main='Value of BIC\nversus number of clusters')
@@ -189,27 +190,31 @@ lines(seq(1,10,1), fake.bic, col='blue')
 
 **Question 1.** Interpret the fake BIC curve above. If these were real data, how many subpopulations would you infer?
 
-**Question 2.** Find the number of population clusters in the tick data using the *find.clusters()* function:
+**Question 2.** Find the number of population clusters in the tick data using the *find.clusters()* function. You have to instruct the *find.clusters()* function to save a certain number of principal components (argument *n.pca*) to use in the DA. If you do not, you will be prompted to choose a number. We want to save as many principal components as possible in order to retain as much variation as we can. The largest number of principal components we can retain is 1/N, or 33 principal components from a sample size of `r nInd(both.sites)` ticks. You will see a warning if you attempt to save more principal components.
 
 ```{r, eval=FALSE}
-guess.k<-find.clusters(both.sites, n.pca=33)
+guess.k<-find.clusters(both.sites, n.pca=33, parallel=F)
+# parallel=F for Windows compatibility
 ```
 
 **Question 3.** What is the lowest BIC for the tick dataset? Does this support the hypothesis that the population is structured?
 
-Because we actually do have some *a priori* idea of what the tick subpopulations might be, so we can leverage this information to improve our structure inference. The following code addresses more specific hypotheeses about structure. While we have up to four possible subpopulations, we can break our analysis into two parts and first look for evidence of structure by collection site.
-
 #### Hypothesis 2: Tick populations are clustered spatially (each collection site has a distinct subpopulation).
 
-When you know what your subpopulations the individuals in your study should belong to, you can test specifically for that structure. You provide the DAPC function information on population membership for each individual, and DAPC identifies the genotypes that best differentiate your populations.
+Because we actually do have some *a priori* idea of what the tick subpopulations might be, so we can leverage this information to improve our structure inference. The following code addresses more specific hypotheeses about structure. While we have up to four possible subpopulations, we can break our analysis into two parts and first look for evidence of structure by collection site.
+
+We specifically test for population structure corresponding to collection site by providing the DAPC function with the collection site of each individual. DAPC then identifies the genotypes that best differentiate your pre-defined populations.
 
 ```{r, eval=F}
 # discriminant analysis of principal components to detect clusters
-both.sites.dapc<-dapc(both.sites, pop=both.sites@pop, n.pca=33, n.da=1)
+# the "pop" argument gives the known collection sites
+# again, save 33 principal components
+both.sites.dapc<-dapc(both.sites, pop=both.sites@pop, n.pca=33, n.da=1, parallel=F)
 par(mar=c(5,5,2,2))
 both.sites.colors<-c('blue', 'red')
-scatter(both.sites.dapc, col=both.sites.colors, axes=FALSE)
-legend("topright", legend=c('Site 1', 'Site 2'), fill=alpha(both.sites.colors, 0.5), bty='n')
+scatter(both.sites.dapc, col=both.sites.colors)
+legend("topright", legend=c('Site 1', 'Site 2'), 
+       fill=alpha(both.sites.colors, 0.5), bty='n')
 ```
 
 The x-axis for your plot shows the value for each individual in the sample along a single discriminant function axis. Because there are only two populations, we need only a single axis to describe the variation between them.
@@ -220,10 +225,16 @@ We can generate STRUCTURE-like plots for the DAPC output. The typical structure 
 
 ```{r, eval=F}
 par(xpd=T, mar=c(5,4,2,8))
-suppressWarnings(compoplot(both.sites.dapc, names.arg=rep(NA, 99), col=site.colors, legend=F))
+compoplot(both.sites.dapc, names.arg=rep(NA, 99), col=site.colors, legend=F)
 lines(y=c(0,1), x=c(99.7, 99.7), lwd=4, lty=2)
-mtext(side=1.2, line=1.3, text="Left of Dashed Line: True Membership Site 1\nRight of Dashed Line: True Membership Site 2")
-legend(120, 0.6, legend=c('Site 1', 'Site 2'), fill=both.sites.colors, title='Assigned Population', bty='n')
+mtext(side=1, line=1.3, text="Left of Dashed Line: True Membership Site 1")
+mtext(side=1, line=2.3, text="Right of Dashed Line: True Membership Site 2")
+legend(120, 0.6, legend=c('Site 1', 'Site 2'), fill=both.sites.colors, 
+       title='Assigned Population', bty='n')
+# you can ignore the "names" is not a graphical parameter errors
+# but if it's annoying you, shut off the graphics device
+# beware, this will clear all of your plots from the plotting pane of R Studio
+graphics.off()
 ```
 
 **Question 5.** Now that you have considered the assignment probabilities for each individual to the respective populations, do you still believe your conclusions in Question 4?
@@ -245,20 +256,34 @@ n.minus.one<-function(genind.data){
   for(i in 1:nInd(genind.data)){
     x.rm<-genind.data[i] # remove individual i
     x.kp<-genind.data[-i] # keep all but individual i
-    x.kp.dapc<-dapc(x.kp, n.pca=32, n.da=1)
+    x.kp.dapc<-dapc(x.kp, n.pca=32, n.da=1, parallel=F)
     predict.x.rm<-predict.dapc(x.kp.dapc, newdata=x.rm)
     if(as.character(predict.x.rm$assign)==as.character(pop(x.rm))){
       correct=correct+1
     }
   }
-  accuracy=correct/nInd(genind.data)
-  return(accuracy)
+  return(correct)
 }
 
-n.minus.one(both.sites)
+site.correct<-n.minus.one(both.sites)
 ```
 
-**Question 7.** What fraction if individuals does DAPC accurately assign to the correct subpopulation? Is this consistent with the results from the full model?
+We can also calculate a 95% confidence interval for our accuracy estimate. If assignment is no better than random, we expect 50% accuracy. If the 95% confidence interval does not include 50% accuracy, that is evidence that genotype has some ability to predict subpopulation membership.
+
+```{r, eval=F}
+library(gplots) # for plotting confidence intervals on barplots
+
+# binomial test to calculate 95% confidence interval
+CI<-binom.test(site.correct, nInd(both.sites), p=0.5, alternative="two.sided")
+par(mar=c(5,5,2,2))
+
+# gplots::barplot2 plots confidence intervals (other arguments purely for aesthetics)
+barplot2(height=site.correct/nInd(both.sites)*100, width=1, xlim=c(0, 1.25), 
+         ylim=c(0,100), plot.ci=T, ci.l=CI$conf.int[1]*100, ci.u=CI$conf.int[2]*100,
+         las=1, xlab='Collection Site Assignment', ylab='Accuracy (%)')
+```
+
+**Question 7.** What fraction if individuals does DAPC accurately assign to the correct subpopulation? Is this significantly different from 50% accuracy (random assignment)? Is this consistent with the results from the full model including all genotypes?
 
 **Question 8.** Compare your results from the specific hypothesis test to the results from the naive approach using the *find.clusters()* function. Does using a specific hypothesis about subpopulation membership change your conclusion about population structuring? Which result should you believe?
 
@@ -267,15 +292,15 @@ n.minus.one(both.sites)
 Site 1 only data are found in Dropbox:
 
 ```
-/Dropbox/BZ 577/Week 6/
+/Dropbox/BZ 577/Week 5-6/BiallelicSNP_Analysis
 ```
 Load the new dataset and analyze as you did for the structure by collection site questions:
 
 ```{r, eval=F}
-site1.only<-read.snp('Ticks_from_site_1.snp')
+site1.only<-read.snp('Ticks_from_site_1.snp', parallel=F)
 ```
 
-
+# References
 
 
 
